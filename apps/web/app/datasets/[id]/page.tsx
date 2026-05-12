@@ -1,27 +1,41 @@
+"use client"
+
+import { useEffect, useState } from "react"
+
+import { useParams } from "next/navigation"
+
 import { DatasetTable } from "@/components/datasets/dataset-table"
-
 import { ProfileSummary } from "@/components/datasets/profile-summary"
-
 import { ColumnProfileCard } from "@/components/datasets/column-profile-card"
+import { getDatasetById } from "@/repositories/datasets/dataset.repository"
 
-import {
-    getDatasetById,
-} from "@/repositories/datasets/dataset.repository"
+export default function DatasetPage() {
+    const params = useParams()
+    const id = params.id as string
 
-export default async function DatasetPage({
-    params,
-}: {
-    params: Promise<{ id: string }>
-}) {
-    const { id } = await params
+    const [dataset, setDataset] = useState<any>(null)
+    const [notFound, setNotFound] = useState(false)
 
-    const dataset: any =
-        await getDatasetById(id)
+    useEffect(() => {
+        if (!id) return
+        getDatasetById(id).then((data) => {
+            if (!data) setNotFound(true)
+            else setDataset(data)
+        })
+    }, [id])
+
+    if (notFound) {
+        return (
+            <main className="p-10">
+                Dataset not found
+            </main>
+        )
+    }
 
     if (!dataset) {
         return (
             <main className="p-10">
-                Dataset not found
+                Loading...
             </main>
         )
     }
@@ -33,8 +47,6 @@ export default async function DatasetPage({
                     {dataset.metadata.name}
                 </h1>
 
-
-
                 <p className="text-muted-foreground">
                     {dataset.metadata.rows} rows
                 </p>
@@ -43,8 +55,6 @@ export default async function DatasetPage({
                     profile={dataset.profile}
                 />
             </div>
-
-
 
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">

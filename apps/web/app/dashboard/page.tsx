@@ -1,12 +1,17 @@
+"use client"
+
+import { useEffect, useState } from "react"
+
 import Link from "next/link"
 
-import {
-    getDatasets,
-} from "@/repositories/datasets/dataset.repository"
+import { getDatasets } from "@/repositories/datasets/dataset.repository"
 
-export default async function DashboardPage() {
-    const datasets =
-        await getDatasets()
+export default function DashboardPage() {
+    const [datasets, setDatasets] = useState<any[]>([])
+
+    useEffect(() => {
+        getDatasets().then(setDatasets)
+    }, [])
 
     return (
         <main className="p-10 space-y-8">
