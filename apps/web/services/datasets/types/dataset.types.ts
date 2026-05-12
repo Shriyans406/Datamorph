@@ -43,3 +43,55 @@ export interface ParsedDataset {
     schema: DatasetSchema
     rows: Record<string, any>[]
 }
+
+export interface NumericProfile {
+    min: number
+    max: number
+    mean: number
+    median: number
+    sum: number
+}
+
+export interface CategoricalProfile {
+    unique: number
+    topValues: {
+        value: string
+        count: number
+    }[]
+}
+
+export interface DateProfile {
+    minDate: string
+    maxDate: string
+}
+
+export interface ColumnProfile {
+    column: string
+    type: DatasetColumnType
+
+    completeness: number
+
+    nullCount: number
+
+    uniqueCount: number
+
+    duplicateCount: number
+
+    numeric?: NumericProfile
+
+    categorical?: CategoricalProfile
+
+    date?: DateProfile
+}
+
+export interface DatasetProfile {
+    totalRows: number
+
+    totalColumns: number
+
+    duplicateRows: number
+
+    healthScore: number
+
+    columns: ColumnProfile[]
+}

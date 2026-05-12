@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from "firebase/app"
 import { getAuth, connectAuthEmulator } from "firebase/auth"
-import { getFirestore, connectFirestoreEmulator } from "firebase/firestore"
+import { getFirestore, connectFirestoreEmulator, initializeFirestore } from "firebase/firestore"
 import { getStorage, connectStorageEmulator } from "firebase/storage"
 import { getDatabase, connectDatabaseEmulator } from "firebase/database"
 
@@ -20,7 +20,12 @@ const app =
         : initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
-export const db = getFirestore(app)
+export const db =
+    getApps().length > 0
+        ? getFirestore(app)
+        : initializeFirestore(app, {
+              experimentalForceLongPolling: true,
+          })
 export const storage = getStorage(app)
 export const realtimeDb = getDatabase(app)
 

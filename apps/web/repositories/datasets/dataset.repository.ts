@@ -28,6 +28,7 @@ export async function saveDataset(
             schema: dataset.schema,
             statistics: dataset.statistics,
             quality: dataset.quality,
+            profile: dataset.profile,
             preview: dataset.preview,
             createdAt: new Date().toISOString(),
         }
