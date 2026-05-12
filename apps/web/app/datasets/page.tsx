@@ -2,19 +2,54 @@
 
 import { useState } from "react"
 
+import { toast } from "sonner"
+
 import { UploadZone } from "@/components/datasets/upload-zone"
 
 import { processDataset } from "@/services/datasets/dataset.service"
 
+import { persistDataset } from "@/services/datasets/persist-dataset"
+
 export default function DatasetsPage() {
-    const [dataset, setDataset] = useState<any>(null)
+    const [loading, setLoading] =
+        useState(false)
+
+    const [dataset, setDataset] =
+        useState<any>(null)
 
     async function handleFile(file: File) {
-        const processed = await processDataset(file)
+        try {
+            setLoading(true)
 
-        console.log(processed)
+            toast.loading("Processing dataset...")
 
-        setDataset(processed)
+            const processed =
+                await processDataset(file)
+
+            const datasetId =
+                await persistDataset(processed)
+
+            toast.dismiss()
+
+            toast.success(
+                "Dataset uploaded successfully"
+            )
+
+            setDataset({
+                ...processed,
+                id: datasetId,
+            })
+        } catch (error) {
+            console.error(error)
+
+            toast.dismiss()
+
+            toast.error(
+                "Failed to process dataset"
+            )
+        } finally {
+            setLoading(false)
+        }
     }
 
     return (
@@ -23,7 +58,15 @@ export default function DatasetsPage() {
                 Datasets
             </h1>
 
-            <UploadZone onFileAccepted={handleFile} />
+            <UploadZone
+                onFileAccepted={handleFile}
+            />
+
+            {loading && (
+                <p className="text-sm text-muted-foreground">
+                    Processing dataset...
+                </p>
+            )}
 
             {dataset && (
                 <div className="space-y-4">
@@ -38,14 +81,6 @@ export default function DatasetsPage() {
                     <p>
                         Columns: {dataset.metadata.columns}
                     </p>
-
-                    <pre className="bg-black text-white p-4 rounded-xl overflow-auto">
-                        {JSON.stringify(
-                            dataset.schema,
-                            null,
-                            2
-                        )}
-                    </pre>
                 </div>
             )}
         </main>

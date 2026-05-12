@@ -1,8 +1,8 @@
 import { initializeApp, getApps, getApp } from "firebase/app"
-import { getAuth } from "firebase/auth"
-import { getFirestore } from "firebase/firestore"
-import { getStorage } from "firebase/storage"
-import { getDatabase } from "firebase/database"
+import { getAuth, connectAuthEmulator } from "firebase/auth"
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore"
+import { getStorage, connectStorageEmulator } from "firebase/storage"
+import { getDatabase, connectDatabaseEmulator } from "firebase/database"
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -23,3 +23,10 @@ export const auth = getAuth(app)
 export const db = getFirestore(app)
 export const storage = getStorage(app)
 export const realtimeDb = getDatabase(app)
+
+if (process.env.NEXT_PUBLIC_USE_EMULATORS === "true") {
+    connectAuthEmulator(auth, "http://127.0.0.1:9099")
+    connectFirestoreEmulator(db, "127.0.0.1", 8085)
+    connectStorageEmulator(storage, "127.0.0.1", 9199)
+    connectDatabaseEmulator(realtimeDb, "127.0.0.1", 9000)
+}
