@@ -31,3 +31,8 @@ coverage/
 
 # shadcn/ui (Optional: Keep if you want to track components, hide if you want a clean repo)
 # components/ui
+
+
+# Project specific
+
+*project_cmd.txt

@@ -1,6 +1,7 @@
 {
   "name": "datamorph",
   "private": true,
+  "packageManager": "npm@11.4.2",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -12,16 +13,23 @@
     "typecheck": "turbo typecheck"
   },
   "devDependencies": {
+    "@types/papaparse": "^5.5.2",
     "turbo": "^2.0.0"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.100.10",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "date-fns": "^4.1.0",
     "firebase": "^12.13.0",
     "lucide-react": "^1.14.0",
+    "nanoid": "^5.1.11",
+    "papaparse": "^5.5.3",
+    "react-dropzone": "^15.0.0",
     "react-hook-form": "^7.75.0",
+    "recharts": "^3.8.1",
     "tailwind-merge": "^3.6.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.4.3",
     "zustand": "^5.0.13"
   }
