@@ -1,12 +1,23 @@
+"use client"
+
+import { useEffect, useState } from "react"
+
 import {
     getDatasets,
 } from "@/repositories/datasets/dataset.repository"
 
 import { DatasetCard } from "@/components/datasets/explorer/dataset-card"
 
-export default async function DashboardPage() {
-    const datasets =
-        await getDatasets()
+export default function DashboardPage() {
+    const [datasets, setDatasets] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        getDatasets().then((data) => {
+            setDatasets(data)
+            setLoading(false)
+        })
+    }, [])
 
     return (
         <main className="p-10 space-y-8">
@@ -22,7 +33,11 @@ export default async function DashboardPage() {
                 </div>
             </div>
 
-            {!datasets.length ? (
+            {loading ? (
+                <div className="border rounded-xl p-10 text-center">
+                    Loading datasets...
+                </div>
+            ) : !datasets.length ? (
                 <div className="border rounded-xl p-10 text-center">
                     No datasets uploaded yet
                 </div>
