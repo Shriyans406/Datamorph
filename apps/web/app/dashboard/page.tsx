@@ -1,41 +1,47 @@
-"use client"
+import {
+    getDatasets,
+} from "@/repositories/datasets/dataset.repository"
 
-import { useEffect, useState } from "react"
+import { DatasetCard } from "@/components/datasets/explorer/dataset-card"
 
-import Link from "next/link"
-
-import { getDatasets } from "@/repositories/datasets/dataset.repository"
-
-export default function DashboardPage() {
-    const [datasets, setDatasets] = useState<any[]>([])
-
-    useEffect(() => {
-        getDatasets().then(setDatasets)
-    }, [])
+export default async function DashboardPage() {
+    const datasets =
+        await getDatasets()
 
     return (
         <main className="p-10 space-y-8">
-            <h1 className="text-3xl font-bold">
-                Dashboard
-            </h1>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">
+                        Dashboard
+                    </h1>
 
-            <div className="grid gap-4">
-                {datasets.map((dataset: any) => (
-                    <Link
-                        key={dataset.id}
-                        href={`/datasets/${dataset.id}`}
-                        className="border rounded-xl p-4 hover:bg-muted"
-                    >
-                        <h2 className="font-semibold">
-                            {dataset.metadata.name}
-                        </h2>
-
-                        <p className="text-sm text-muted-foreground">
-                            {dataset.metadata.rows} rows
-                        </p>
-                    </Link>
-                ))}
+                    <p className="text-muted-foreground">
+                        Explore uploaded datasets
+                    </p>
+                </div>
             </div>
+
+            {!datasets.length ? (
+                <div className="border rounded-xl p-10 text-center">
+                    No datasets uploaded yet
+                </div>
+            ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {datasets.map(
+                        (dataset: any) => (
+                            <DatasetCard
+                                key={
+                                    dataset.id
+                                }
+                                dataset={
+                                    dataset
+                                }
+                            />
+                        )
+                    )}
+                </div>
+            )}
         </main>
     )
 }

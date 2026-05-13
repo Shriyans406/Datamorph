@@ -4,7 +4,9 @@ import { useEffect, useState } from "react"
 
 import { useParams } from "next/navigation"
 
-import { DatasetTable } from "@/components/datasets/dataset-table"
+//import { DatasetTable } from "@/components/datasets/dataset-table"
+import { ExplorerTable } from "@/components/datasets/explorer/explorer-table"
+
 import { ProfileSummary } from "@/components/datasets/profile-summary"
 import { ColumnProfileCard } from "@/components/datasets/column-profile-card"
 import { getDatasetById } from "@/repositories/datasets/dataset.repository"
@@ -70,13 +72,23 @@ export default function DatasetPage() {
                 </pre>
             </div>
 
+            <div className="flex gap-3">
+                <button className="border rounded-xl px-4 py-2">
+                    Export
+                </button>
+
+                <button className="border rounded-xl px-4 py-2">
+                    Refresh
+                </button>
+            </div>
+
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">
                     Preview
                 </h2>
 
-                <DatasetTable
-                    rows={dataset.rows.slice(0, 20)}
+                <ExplorerTable
+                    rows={dataset.rows}
                 />
             </div>
 
