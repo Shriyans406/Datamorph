@@ -19,13 +19,16 @@ export function applyFilters(
             filter.operator
             ) {
                 case "equals":
+                    // Coerce both sides so "30" matches 30
                     return (
-                        value === filter.value
+                        String(value).toLowerCase() ===
+                        String(filter.value).toLowerCase()
                     )
 
                 case "not_equals":
                     return (
-                        value !== filter.value
+                        String(value).toLowerCase() !==
+                        String(filter.value).toLowerCase()
                     )
 
                 case "contains":
@@ -37,17 +40,19 @@ export function applyFilters(
                             ).toLowerCase()
                         )
 
-                case "greater_than":
-                    return (
-                        Number(value) >
-                        Number(filter.value)
-                    )
+                case "greater_than": {
+                    const numVal = Number(value)
+                    const numFilter = Number(filter.value)
+                    if (isNaN(numVal) || isNaN(numFilter)) return false
+                    return numVal > numFilter
+                }
 
-                case "less_than":
-                    return (
-                        Number(value) <
-                        Number(filter.value)
-                    )
+                case "less_than": {
+                    const numVal = Number(value)
+                    const numFilter = Number(filter.value)
+                    if (isNaN(numVal) || isNaN(numFilter)) return false
+                    return numVal < numFilter
+                }
 
                 default:
                     return true
