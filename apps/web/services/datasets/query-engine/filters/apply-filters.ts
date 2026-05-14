@@ -8,6 +8,10 @@ export function applyFilters(
 ) {
     return rows.filter((row) => {
         return filters.every((filter) => {
+            if (filter.value === "" || filter.value === undefined) {
+                return true
+            }
+
             const value =
                 row[filter.column]
 

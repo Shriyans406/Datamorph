@@ -47,54 +47,30 @@ export function ExplorerTable({
         ? Object.keys(rows[0])
         : []
 
-    // const filteredRows = useMemo(() => {
-    //     return rows.filter((row) =>
-    //         Object.values(row)
-    //             .join(" ")
-    //             .toLowerCase()
-    //             .includes(
-    //                 search.toLowerCase()
-    //             )
-    //     )
-    // }, [rows, search])
+    const searchFilteredRows = useMemo(() => {
+        if (!search) return rows
+        return rows.filter((row) =>
+            Object.values(row)
+                .join(" ")
+                .toLowerCase()
+                .includes(
+                    search.toLowerCase()
+                )
+        )
+    }, [rows, search])
 
-    // const sortedRows = useMemo(() => {
-    //     if (!sortColumn)
-    //         return filteredRows
-
-    //     return [...filteredRows].sort(
-    //         (a, b) => {
-    //             const aValue =
-    //                 a[sortColumn]
-
-    //             const bValue =
-    //                 b[sortColumn]
-
-    //             if (aValue < bValue) {
-    //                 return sortDirection ===
-    //                     "asc"
-    //                     ? -1
-    //                     : 1
-    //             }
-
-    //             if (aValue > bValue) {
-    //                 return sortDirection ===
-    //                     "asc"
-    //                     ? 1
-    //                     : -1
-    //             }
-
-    //             return 0
-    //         }
-    //     )
-    // }, [
-    //     filteredRows,
-    //     sortColumn,
-    //     sortDirection,
-    // ])
+    const fullQuery = useMemo(() => {
+        const q = { ...query }
+        if (sortColumn) {
+            q.sorting = [{ column: sortColumn, direction: sortDirection }]
+        } else {
+            q.sorting = undefined
+        }
+        return q
+    }, [query, sortColumn, sortDirection])
 
     const queryResult =
-        useQueryEngine(rows, query)
+        useQueryEngine(searchFilteredRows, fullQuery)
 
     const sortedRows =
         queryResult.rows
@@ -134,18 +110,17 @@ export function ExplorerTable({
                 onChange={setSearch}
             />
 
+            <QueryBuilder
+                columns={columns}
+                query={query}
+                onChange={setQuery}
+            />
+
             {!paginatedRows.length ? (
                 <ExplorerEmpty />
             ) : (
                 <>
                     <div className="overflow-auto border rounded-xl max-h-[600px]">
-
-                        <QueryBuilder
-                            columns={columns}
-                            query={query}
-                            onChange={setQuery}
-                        />
-
                         <table className="w-full text-sm">
                             <thead className="bg-muted sticky top-0">
                                 <tr>
