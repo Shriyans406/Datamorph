@@ -8,6 +8,13 @@ import { ExplorerPagination } from "./explorer-pagination"
 
 import { ExplorerEmpty } from "./explorer-empty"
 
+
+//new imports
+import { useQueryEngine } from "@/services/datasets/query-engine/hooks/use-query-engine"
+
+import { QueryBuilder } from "./query-builder"
+
+
 interface Props {
     rows: Record<string, any>[]
 }
@@ -31,55 +38,66 @@ export function ExplorerTable({
             "asc" | "desc"
         >("asc")
 
+    const [query, setQuery] =
+        useState<any>({
+            filters: [],
+        })
+
     const columns = rows.length
         ? Object.keys(rows[0])
         : []
 
-    const filteredRows = useMemo(() => {
-        return rows.filter((row) =>
-            Object.values(row)
-                .join(" ")
-                .toLowerCase()
-                .includes(
-                    search.toLowerCase()
-                )
-        )
-    }, [rows, search])
+    // const filteredRows = useMemo(() => {
+    //     return rows.filter((row) =>
+    //         Object.values(row)
+    //             .join(" ")
+    //             .toLowerCase()
+    //             .includes(
+    //                 search.toLowerCase()
+    //             )
+    //     )
+    // }, [rows, search])
 
-    const sortedRows = useMemo(() => {
-        if (!sortColumn)
-            return filteredRows
+    // const sortedRows = useMemo(() => {
+    //     if (!sortColumn)
+    //         return filteredRows
 
-        return [...filteredRows].sort(
-            (a, b) => {
-                const aValue =
-                    a[sortColumn]
+    //     return [...filteredRows].sort(
+    //         (a, b) => {
+    //             const aValue =
+    //                 a[sortColumn]
 
-                const bValue =
-                    b[sortColumn]
+    //             const bValue =
+    //                 b[sortColumn]
 
-                if (aValue < bValue) {
-                    return sortDirection ===
-                        "asc"
-                        ? -1
-                        : 1
-                }
+    //             if (aValue < bValue) {
+    //                 return sortDirection ===
+    //                     "asc"
+    //                     ? -1
+    //                     : 1
+    //             }
 
-                if (aValue > bValue) {
-                    return sortDirection ===
-                        "asc"
-                        ? 1
-                        : -1
-                }
+    //             if (aValue > bValue) {
+    //                 return sortDirection ===
+    //                     "asc"
+    //                     ? 1
+    //                     : -1
+    //             }
 
-                return 0
-            }
-        )
-    }, [
-        filteredRows,
-        sortColumn,
-        sortDirection,
-    ])
+    //             return 0
+    //         }
+    //     )
+    // }, [
+    //     filteredRows,
+    //     sortColumn,
+    //     sortDirection,
+    // ])
+
+    const queryResult =
+        useQueryEngine(rows, query)
+
+    const sortedRows =
+        queryResult.rows
 
     const totalPages = Math.ceil(
         sortedRows.length / PAGE_SIZE
@@ -121,6 +139,13 @@ export function ExplorerTable({
             ) : (
                 <>
                     <div className="overflow-auto border rounded-xl max-h-[600px]">
+
+                        <QueryBuilder
+                            columns={columns}
+                            query={query}
+                            onChange={setQuery}
+                        />
+
                         <table className="w-full text-sm">
                             <thead className="bg-muted sticky top-0">
                                 <tr>

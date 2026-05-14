@@ -23,6 +23,15 @@ export function executeQuery(
 
     let resultRows = [...rows]
 
+    if (!rows.length) {
+        return {
+            rows: [],
+            totalRows: 0,
+            grouped: null,
+            aggregations: null,
+        }
+    }
+
     if (
         ast.computedColumns?.length
     ) {
