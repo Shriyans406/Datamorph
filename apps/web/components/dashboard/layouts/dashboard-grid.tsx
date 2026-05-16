@@ -17,12 +17,12 @@ const GridLayout = dynamic(
 interface Props {
     widgets: any[]
 
-    data: any[]
+    dataMap: Record<string, any[]>
 }
 
 export function DashboardGrid({
     widgets,
-    data,
+    dataMap,
 }: Props) {
     return (
         <GridLayout
@@ -49,7 +49,7 @@ export function DashboardGrid({
                     >
                         <DashboardWidgetCard
                             widget={widget}
-                            data={data}
+                            data={dataMap[widget.datasetId] || []}
                         />
                     </div>
                 )

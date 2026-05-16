@@ -1,188 +1,70 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
 
-import { DashboardToolbar } from "@/components/dashboard/toolbar/dashboard-toolbar"
+import {
+    getDatasets,
+} from "@/repositories/datasets/dataset.repository"
 
-import { DashboardGrid } from "@/components/dashboard/layouts/dashboard-grid"
-
-import { GlobalFilters } from "@/components/dashboard/filters/global-filters"
-
-import { saveDashboard } from "@/services/dashboard/persistence/dashboard.persistence"
-
-import { useDashboardAutosave } from "@/services/dashboard/hooks/use-dashboard-autosave"
-
-import { executeQuery } from "@/services/datasets/query-engine/pipeline/execute-query"
-
-import { DashboardFilter } from "@/services/dashboard/types/dashboard.types"
-
-const mockData = [
-    {
-        country: "India",
-        sales: 100,
-        revenue: 300,
-    },
-
-    {
-        country: "USA",
-        sales: 200,
-        revenue: 450,
-    },
-
-    {
-        country: "UK",
-        sales: 150,
-        revenue: 350,
-    },
-]
+import { DatasetCard } from "@/components/datasets/explorer/dataset-card"
 
 export default function DashboardPage() {
-    const [widgets, setWidgets] =
-        useState([
-            {
-                id: "1",
+    const [datasets, setDatasets] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
 
-                type: "bar_chart",
-
-                title:
-                    "Sales by Country",
-
-                datasetId: "dataset_1",
-
-                layout: {
-                    x: 0,
-                    y: 0,
-                    w: 6,
-                    h: 8,
-                },
-
-                config: {
-                    type: "bar",
-
-                    title:
-                        "Sales",
-
-                    xAxis:
-                        "country",
-
-                    yAxis:
-                        "sales",
-                },
-            },
-        ])
-
-    const [filters, setFilters] =
-        useState<DashboardFilter[]>([])
-
-    async function handleSave() {
-        await saveDashboard({
-            id: "dashboard_1",
-
-            name:
-                "Executive Dashboard",
-
-            widgets,
-
-            filters,
-
-            createdAt: Date.now(),
-
-            updatedAt: Date.now(),
-        } as any)
-
-        alert(
-            "Dashboard Saved"
-        )
-    }
-
-    useDashboardAutosave({
-        id: "dashboard_1",
-
-        name:
-            "Executive Dashboard",
-
-        widgets,
-
-        filters,
-
-        createdAt: Date.now(),
-
-        updatedAt: Date.now(),
-    })
-
-    function addWidget() {
-        setWidgets((prev) => [
-            ...prev,
-
-            {
-                id:
-                    crypto.randomUUID(),
-
-                type:
-                    "line_chart",
-
-                title:
-                    "Revenue Trends",
-
-                datasetId:
-                    "dataset_1",
-
-                layout: {
-                    x: 0,
-                    y: Infinity,
-                    w: 6,
-                    h: 8,
-                },
-
-                config: {
-                    type: "line",
-
-                    title:
-                        "Revenue",
-
-                    xAxis:
-                        "country",
-
-                    yAxis:
-                        "revenue",
-                },
-            },
-        ])
-    }
-
-    const filteredData =
-        executeQuery(mockData, {
-            filters,
-        }).rows
+    useEffect(() => {
+        getDatasets().then((data) => {
+            setDatasets(data)
+            setLoading(false)
+        })
+    }, [])
 
     return (
-        <main className="p-8 space-y-6">
-            <div>
-                <h1 className="text-3xl font-bold">
-                    Dashboard Builder
-                </h1>
+        <main className="p-10 space-y-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold">
+                        Dashboard
+                    </h1>
 
-                <p className="text-muted-foreground">
-                    Build enterprise analytics dashboards
-                </p>
+                    <p className="text-muted-foreground">
+                        Explore uploaded datasets and analyze data
+                    </p>
+                </div>
+                
+                <Link 
+                    href="/dashboard-builder" 
+                    className="border rounded-xl px-4 py-2 hover:bg-muted transition font-medium"
+                >
+                    Open Dashboard Builder
+                </Link>
             </div>
 
-            <DashboardToolbar
-                onSave={handleSave}
-                onAddWidget={
-                    addWidget
-                }
-            />
-
-            <GlobalFilters
-                filters={filters}
-                onChange={setFilters}
-            />
-
-            <DashboardGrid
-                widgets={widgets}
-                data={filteredData}
-            />
+            {loading ? (
+                <div className="border rounded-xl p-10 text-center">
+                    Loading datasets...
+                </div>
+            ) : !datasets.length ? (
+                <div className="border rounded-xl p-10 text-center">
+                    No datasets uploaded yet
+                </div>
+            ) : (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {datasets.map(
+                        (dataset: any) => (
+                            <DatasetCard
+                                key={
+                                    dataset.id
+                                }
+                                dataset={
+                                    dataset
+                                }
+                            />
+                        )
+                    )}
+                </div>
+            )}
         </main>
     )
 }
