@@ -4,7 +4,6 @@ import { useEffect, useState } from "react"
 
 import { useParams } from "next/navigation"
 
-//import { DatasetTable } from "@/components/datasets/dataset-table"
 import { ExplorerTable } from "@/components/datasets/explorer/explorer-table"
 
 import { ProfileSummary } from "@/components/datasets/profile-summary"
@@ -44,26 +43,30 @@ export default function DatasetPage() {
 
     return (
         <main className="p-10 space-y-8">
+            {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold">
                     {dataset.metadata.name}
                 </h1>
 
                 <p className="text-muted-foreground">
-                    {dataset.metadata.rows} rows
+                    {dataset.metadata.rows} rows · {dataset.metadata.columns} columns
                 </p>
 
-                <ProfileSummary
-                    profile={dataset.profile}
-                />
+                <div className="mt-4">
+                    <ProfileSummary
+                        profile={dataset.profile}
+                    />
+                </div>
             </div>
 
+            {/* Schema */}
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">
                     Schema
                 </h2>
 
-                <pre className="bg-black text-white p-4 rounded-xl overflow-auto">
+                <pre className="bg-muted text-sm p-4 rounded-xl overflow-auto max-h-48">
                     {JSON.stringify(
                         dataset.schema,
                         null,
@@ -72,16 +75,18 @@ export default function DatasetPage() {
                 </pre>
             </div>
 
+            {/* Actions */}
             <div className="flex gap-3">
-                <button className="border rounded-xl px-4 py-2">
+                <button className="border rounded-xl px-4 py-2 hover:bg-muted transition">
                     Export
                 </button>
 
-                <button className="border rounded-xl px-4 py-2">
+                <button className="border rounded-xl px-4 py-2 hover:bg-muted transition">
                     Refresh
                 </button>
             </div>
 
+            {/* Preview Table with QueryBuilder */}
             <div className="space-y-2">
                 <h2 className="text-xl font-semibold">
                     Preview
@@ -92,20 +97,47 @@ export default function DatasetPage() {
                 />
             </div>
 
+            {/* Column Profiles */}
             <div className="space-y-4">
                 <h2 className="text-2xl font-bold">
                     Column Profiles
                 </h2>
 
-                <div className="grid grid-cols-3 gap-4">
-                    {dataset.profile.columns.map(
-                        (column: any) => (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {(() => {
+                        const rawColumns: any[] = dataset.profile.columns ?? []
+                        // Check if columns were stored with semicolon-joined header key
+                        const brokenCol = rawColumns.find(
+                            (c: any) =>
+                                c.column &&
+                                c.column.includes(";") &&
+                                c.column.split(";").length > 3
+                        )
+                        // If broken: expand into one card per real column name
+                        const displayColumns = brokenCol
+                            ? brokenCol.column
+                                .split(";")
+                                .map((name: string) =>
+                                    name.replace(/^["'\s]+|["'\s]+$/g, "").trim()
+                                )
+                                .filter(Boolean)
+                                .map((name: string) => ({
+                                    column: name,
+                                    type: "unknown",
+                                    completeness: 0,
+                                    uniqueCount: 0,
+                                    duplicateCount: 0,
+                                    nullCount: 0,
+                                }))
+                            : rawColumns
+
+                        return displayColumns.map((column: any) => (
                             <ColumnProfileCard
                                 key={column.column}
                                 column={column}
                             />
-                        )
-                    )}
+                        ))
+                    })()}
                 </div>
             </div>
         </main>

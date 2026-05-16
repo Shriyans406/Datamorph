@@ -5,6 +5,10 @@ export async function parseCSV(file: File) {
         Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
+            dynamicTyping: true,
+
+            // Auto-detect delimiter: comma, semicolon, tab, pipe
+            delimitersToGuess: [",", ";", "\t", "|"],
 
             complete(results) {
                 resolve(results.data as any[])

@@ -14,53 +14,50 @@ export default function DashboardBuilderPage() {
     const [widgets, setWidgets] = useState<any[]>([])
     const [filters, setFilters] = useState<DashboardFilter[]>([])
     const [name, setName] = useState("New Dashboard")
-    
-    // dataMap stores the raw data fetched from each dataset
+
+    // rawDataMap: datasetId -> original rows (fetched once)
     const [rawDataMap, setRawDataMap] = useState<Record<string, any[]>>({})
-    
-    // processedDataMap stores the data after applying global filters
+
+    // processedDataMap: datasetId -> rows after global filters applied
     const [processedDataMap, setProcessedDataMap] = useState<Record<string, any[]>>({})
-    
+
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
-    // When widgets change, fetch any missing datasets
+    // Fetch data for any newly-added datasets
     useEffect(() => {
-        const fetchMissingDatasets = async () => {
-            const uniqueDatasetIds = Array.from(new Set(widgets.map(w => w.datasetId)))
-            
-            const newDataMap = { ...rawDataMap }
-            let updated = false
-            
-            for (const id of uniqueDatasetIds) {
-                if (!newDataMap[id]) {
-                    const dataset = await getDatasetById(id)
-                    if (dataset && dataset.rows) {
-                        newDataMap[id] = dataset.rows
-                        updated = true
-                    }
-                }
-            }
-            
-            if (updated) {
-                setRawDataMap(newDataMap)
-            }
-        }
-        
-        fetchMissingDatasets()
+        const uniqueIds = Array.from(new Set(widgets.map((w) => w.datasetId)))
+
+        const missingIds = uniqueIds.filter((id) => !rawDataMap[id])
+        if (missingIds.length === 0) return
+
+        Promise.all(
+            missingIds.map((id) =>
+                getDatasetById(id).then((dataset) => ({
+                    id,
+                    rows: dataset?.rows ?? [],
+                }))
+            )
+        ).then((results) => {
+            setRawDataMap((prev) => {
+                const updated = { ...prev }
+                results.forEach(({ id, rows }) => {
+                    updated[id] = rows
+                })
+                return updated
+            })
+        })
     }, [widgets])
 
-    // Apply filters whenever filters or rawDataMap changes
+    // Apply global filters whenever filters or rawDataMap changes
     useEffect(() => {
-        const newProcessedDataMap: Record<string, any[]> = {}
-        
+        const processed: Record<string, any[]> = {}
         for (const [datasetId, rows] of Object.entries(rawDataMap)) {
-            // Apply global filters to this dataset
-            // Note: If a filter references a column that doesn't exist in this dataset,
-            // executeQuery might filter out everything. It's up to the user to manage this.
-            newProcessedDataMap[datasetId] = executeQuery(rows, { filters }).rows
+            processed[datasetId] =
+                filters.length > 0
+                    ? executeQuery(rows, { filters }).rows
+                    : rows
         }
-        
-        setProcessedDataMap(newProcessedDataMap)
+        setProcessedDataMap(processed)
     }, [filters, rawDataMap])
 
     async function handleSave() {
@@ -72,28 +69,28 @@ export default function DashboardBuilderPage() {
             createdAt: Date.now(),
             updatedAt: Date.now(),
         } as any)
-        alert("Dashboard Saved")
+        alert("Dashboard saved!")
     }
 
     function handleAddWidget(widget: any) {
-        setWidgets(prev => [...prev, widget])
+        setWidgets((prev) => [...prev, widget])
     }
 
     return (
         <main className="p-8 space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                    <input 
+            <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                    <input
                         value={name}
-                        onChange={e => setName(e.target.value)}
+                        onChange={(e) => setName(e.target.value)}
                         className="text-3xl font-bold bg-transparent outline-none border-b border-transparent focus:border-border"
                         placeholder="Dashboard Name"
                     />
-                    <p className="text-muted-foreground">
-                        Build your custom analytics dashboard
+                    <p className="text-muted-foreground text-sm">
+                        Build your custom analytics dashboard using real datasets
                     </p>
                 </div>
-                
+
                 <DashboardToolbar
                     onSave={handleSave}
                     onAddWidget={() => setIsAddModalOpen(true)}
@@ -105,12 +102,19 @@ export default function DashboardBuilderPage() {
                 onChange={setFilters}
             />
 
-            <DashboardGrid
-                widgets={widgets}
-                dataMap={processedDataMap}
-            />
+            {widgets.length === 0 ? (
+                <div className="border-2 border-dashed rounded-2xl p-20 text-center text-muted-foreground">
+                    <p className="text-lg font-medium mb-2">No widgets yet</p>
+                    <p className="text-sm">Click &quot;Add Widget&quot; above to add your first chart</p>
+                </div>
+            ) : (
+                <DashboardGrid
+                    widgets={widgets}
+                    dataMap={processedDataMap}
+                />
+            )}
 
-            <AddWidgetModal 
+            <AddWidgetModal
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
                 onAdd={handleAddWidget}
