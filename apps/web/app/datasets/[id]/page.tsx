@@ -9,6 +9,7 @@ import { ExplorerTable } from "@/components/datasets/explorer/explorer-table"
 import { ProfileSummary } from "@/components/datasets/profile-summary"
 import { ColumnProfileCard } from "@/components/datasets/column-profile-card"
 import { getDatasetById } from "@/repositories/datasets/dataset.repository"
+import { AIInsightsPanel } from "@/components/datasets/ai-insights-panel"
 
 export default function DatasetPage() {
     const params = useParams()
@@ -58,6 +59,11 @@ export default function DatasetPage() {
                         profile={dataset.profile}
                     />
                 </div>
+            </div>
+
+            {/* AI Insights & Exploration Panel */}
+            <div className="mt-6">
+                <AIInsightsPanel dataset={dataset} />
             </div>
 
             {/* Schema */}
