@@ -28,7 +28,7 @@ export class AICache {
     async get(key: string): Promise<any | null> {
         const now = Date.now();
 
-        // 1. Check RAM Cache
+        // 1. Check RAM Cache — always instant
         const cachedMem = memoryCache.get(key);
         if (cachedMem) {
             if (cachedMem.expiresAt > now) {
@@ -37,25 +37,34 @@ export class AICache {
             memoryCache.delete(key); // Stale entry
         }
 
-        // 2. Check Firestore Cache
+        // 2. Check Firestore Cache with strict 2-second timeout
+        // This prevents hanging when emulator GRPC stream is degraded
         try {
             const docRef = doc(db, this.collectionName, key);
-            const docSnap = await getDoc(docRef);
+            const firestorePromise = getDoc(docRef);
+            const timeoutPromise = new Promise<null>((resolve) =>
+                setTimeout(() => resolve(null), 2000)
+            );
 
-            if (docSnap.exists()) {
+            const docSnap = await Promise.race([firestorePromise, timeoutPromise]);
+
+            if (docSnap && "exists" in docSnap && docSnap.exists()) {
                 const data = docSnap.data();
                 if (data.expiresAt > now) {
-                    // Backfill memory cache
                     memoryCache.set(key, { value: data.value, expiresAt: data.expiresAt });
                     return data.value;
                 }
             }
-        } catch (error) {
-            console.error("⚠️ Firestore Cache read failed: ", error);
+        } catch (error: any) {
+            // Silently skip Firestore if emulator is offline — memory cache is sufficient
+            if (error?.code !== "unavailable") {
+                console.warn("⚠️ Firestore Cache read skipped:", error?.code || error?.message);
+            }
         }
 
         return null;
     }
+
 
     /**
      * Saves cache values

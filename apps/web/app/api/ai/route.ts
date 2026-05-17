@@ -77,8 +77,8 @@ export async function POST(req: NextRequest) {
             const cleanText = geminiClient.cleanJsonResponse(resultText);
             const parsedData = JSON.parse(cleanText);
 
-            // Store in Cache Layer
-            await aiCache.set(cacheKey, parsedData);
+            // Store in Cache Layer — fire-and-forget, never block the response
+            aiCache.set(cacheKey, parsedData).catch(() => { /* Firestore offline is fine */ });
 
             return NextResponse.json({ source: "api", data: parsedData });
         } catch (parseError) {
