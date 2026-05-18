@@ -4,6 +4,7 @@ import {
     getDoc,
     getDocs,
     setDoc,
+    onSnapshot
 } from "firebase/firestore"
 
 import { db } from "@/lib/firebase"
@@ -55,4 +56,13 @@ export async function getDashboards() {
     return snapshot.docs.map(
         (doc) => doc.data()
     )
+}
+
+export function subscribeToDashboard(dashboardId: string, callback: (data: Dashboard) => void) {
+    const unsubscribe = onSnapshot(doc(db, DASHBOARD_COLLECTION, dashboardId), (doc) => {
+        if (doc.exists()) {
+            callback(doc.data() as Dashboard);
+        }
+    });
+    return unsubscribe;
 }
