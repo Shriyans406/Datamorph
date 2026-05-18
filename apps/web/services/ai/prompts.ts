@@ -34,34 +34,42 @@ Recommend the best chart config:`;
     /**
      * Prompts Gemini to parse conversational text into a structured query engine schema
      */
+    /**
+ * Prompts Gemini to parse conversational text into a structured query engine schema
+ */
     getQueryParserPrompt(
         naturalLanguageQuery: string,
         columns: string[]
     ): { system: string; prompt: string } {
-        const system = `You are an AI interface parsing user text into a strict dataset query filter object.
-Your goal is to parse conversational filters into JSON structures matching this QueryFilter schema:
+        const system = `You are an AI interface parsing user text into a strict dataset query object.
+Your goal is to parse conversational requests into JSON structures matching this schema:
 {
     "filters": [
-        {
-            "column": "exact_column_name",
-            "operator": "equals" | "not_equals" | "contains" | "greater_than" | "less_than",
-            "value": "parsed_value"
-        }
-    ]
+        { "column": "exact_column_name", "operator": "equals" | "not_equals" | "contains" | "greater_than" | "less_than", "value": "parsed_value" }
+    ],
+    "grouping": ["column_to_group_by"],
+    "aggregations": [
+        { "column": "column_to_aggregate", "type": "sum" | "avg" | "count" | "min" | "max", "alias": "optional_new_name" }
+    ],
+    "sorting": [
+        { "column": "column_to_sort_by", "direction": "asc" | "desc" }
+    ],
+    "limit": 10 // number or null
 }
 Key Rules:
 1. Match column names exactly to the provided list.
-2. Deduce types properly. Numbers like 25 should be numerical values in "value", strings in quotes should be strings.
-3. If the user filter contains multiple clauses (e.g. "age > 25 and salary > 50000"), output all of them in the "filters" array.
-4. Reply strictly with the JSON representation. Do not include markdown code block wrappers (e.g. \`\`\`json).`;
+2. If the user asks for "top N", use sorting descending and set the limit to N.
+3. If asking for "sales by region", grouping is ["region"] and aggregations is [{"column": "sales", "type": "sum"}].
+4. Reply strictly with the JSON representation. Do not include markdown wrappers.`;
 
         const prompt = `User Filter Request: "${naturalLanguageQuery}"
 Valid Columns list: ${JSON.stringify(columns)}
 
-Generate the parsed filters JSON structure:`;
+Generate the parsed query JSON structure:`;
 
         return { system, prompt };
     },
+
 
     /**
      * Prompts Gemini to generate descriptive summaries and find anomalies in column stats

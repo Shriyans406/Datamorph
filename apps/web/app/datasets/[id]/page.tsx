@@ -11,6 +11,9 @@ import { ColumnProfileCard } from "@/components/datasets/column-profile-card"
 import { getDatasetById } from "@/repositories/datasets/dataset.repository"
 import { AIInsightsPanel } from "@/components/datasets/ai-insights-panel"
 
+
+import { NLQueryEngine } from "@/components/datasets/nl-query-engine"
+
 export default function DatasetPage() {
     const params = useParams()
     const id = params.id as string
@@ -64,6 +67,11 @@ export default function DatasetPage() {
             {/* AI Insights & Exploration Panel */}
             <div className="mt-6">
                 <AIInsightsPanel dataset={dataset} />
+            </div>
+
+            {/* Natural Language Query Engine */}
+            <div className="mt-8">
+                <NLQueryEngine dataset={dataset} />
             </div>
 
             {/* Schema */}
