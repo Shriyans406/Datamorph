@@ -44,6 +44,18 @@ export default function CollaborativeDashboardPage() {
     // Shared & Invitation Token States
     const [shareLinkPermission, setShareLinkPermission] = useState<"viewer" | "editor" | null>(null)
     const [resolvedInvite, setResolvedInvite] = useState<{ role: "viewer" | "editor"; token: string } | null>(null)
+    // tokenResolved: true once the async share/invite token check is done
+    const [tokenResolved, setTokenResolved] = useState(false)
+
+    // Reset token resolution when dashboard ID changes
+    useEffect(() => {
+        setTokenResolved(false)
+        setDashboard(null)
+        setLoading(true)
+        setErrorScreen("none")
+        setShareLinkPermission(null)
+        setResolvedInvite(null)
+    }, [dashboardId])
 
     // Data Mapping states
     const [rawDataMap, setRawDataMap] = useState<Record<string, any[]>>({})
@@ -56,80 +68,92 @@ export default function CollaborativeDashboardPage() {
         shareLinkPermission
     )
 
-    // ── 2. Run token resolution & load dashboard ──────────────────────────
+    // ── 2a. Token resolution (one-shot async, no subscription) ────────────
     useEffect(() => {
-        const initialize = async () => {
+        let cancelled = false
+        const resolveTokens = async () => {
             setLoading(true)
             setErrorScreen("none")
-
             try {
-                // A. Resolve Expiring Share Token
                 const shareToken = searchParams.get("shareToken")
-                let resolvedPerm: "viewer" | "editor" | null = null
-
                 if (shareToken) {
                     const validLink = await getValidShareLink(shareToken)
+                    if (cancelled) return
                     if (!validLink) {
                         setErrorScreen("expired")
                         setLoading(false)
+                        setTokenResolved(true)
                         return
                     }
-                    resolvedPerm = validLink.permission
                     setShareLinkPermission(validLink.permission)
                 }
 
-                // B. Resolve Team Invite Token
                 const inviteToken = searchParams.get("inviteToken")
                 if (inviteToken) {
                     const validInvite = await getValidInvitation(inviteToken)
-                    if (validInvite) {
+                    if (!cancelled && validInvite) {
                         setResolvedInvite({ role: validInvite.role, token: inviteToken })
                     }
                 }
-
-                // C. Load Dashboard subscription
-                const initBlank = async () => {
-                    const blank: Dashboard = {
-                        id: dashboardId,
-                        name: `Dashboard — ${dashboardId}`,
-                        widgets: [],
-                        filters: [],
-                        ownerId: "alice_owner_10", // Default Alice to owner on initial generate
-                        publicAccess: "private",
-                        teamPermissions: {},
-                        createdAt: Date.now(),
-                        updatedAt: Date.now(),
-                    }
-                    await saveDashboard(blank)
-                }
-
-                const unsubscribe = subscribeToDashboard(dashboardId, (data) => {
-                    setDashboard(data)
-                    setLoading(false)
-                })
-
-                // Auto-generate if no doc returned in 1.5 seconds
-                const timer = setTimeout(() => {
-                    setDashboard(prev => {
-                        if (!prev && !shareToken) {
-                            initBlank()
-                        }
-                        return prev
-                    })
-                }, 1500)
-
-                return () => {
-                    clearTimeout(timer)
-                    try { unsubscribe() } catch (_) {}
-                }
             } catch (err) {
                 console.error(err)
-                setLoading(false)
+            } finally {
+                if (!cancelled) setTokenResolved(true)
             }
         }
-
-        initialize()
+        resolveTokens()
+        return () => { cancelled = true }
     }, [dashboardId, searchParams])
+
+    // ── 2b. Firestore subscription (runs after tokens are resolved) ────────
+    useEffect(() => {
+        // Wait until token resolution is complete AND no expired error
+        if (!tokenResolved || errorScreen === "expired") return
+
+        const shareToken = searchParams.get("shareToken")
+
+        const initBlank = async () => {
+            const blank: Dashboard = {
+                id: dashboardId,
+                name: `Dashboard — ${dashboardId}`,
+                widgets: [],
+                filters: [],
+                ownerId: "alice_owner_10",
+                publicAccess: "private",
+                teamPermissions: {},
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+            }
+            await saveDashboard(blank)
+            // saveDashboard triggers onSnapshot which will setDashboard & setLoading(false)
+            // but add safety timeout in case Firestore emulator is slow
+            setTimeout(() => setLoading(false), 2000)
+        }
+
+        const unsubscribe = subscribeToDashboard(dashboardId, (data) => {
+            setDashboard(data)
+            setLoading(false)
+        })
+
+        // Auto-generate blank doc if nothing exists within 1.5 s
+        const timer = setTimeout(() => {
+            setDashboard(prev => {
+                if (!prev && !shareToken) {
+                    initBlank()
+                } else if (!prev && shareToken) {
+                    // If shared link but dashboard not found, show expired
+                    setErrorScreen("expired")
+                    setLoading(false)
+                }
+                return prev
+            })
+        }, 1500)
+
+        return () => {
+            clearTimeout(timer)
+            try { unsubscribe() } catch (_) {}
+        }
+    }, [dashboardId, tokenResolved, errorScreen])
 
     // ── 3. Handle Presence Join ───────────────────────────────────────────
     useEffect(() => {
