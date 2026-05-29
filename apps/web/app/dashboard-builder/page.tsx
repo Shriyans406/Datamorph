@@ -94,6 +94,9 @@ export default function DashboardBuilderPage() {
                 <DashboardToolbar
                     onSave={handleSave}
                     onAddWidget={() => setIsAddModalOpen(true)}
+                    canEdit={true}
+                    canShare={false}
+                    onOpenShare={() => {}}
                 />
             </div>
 
@@ -111,6 +114,7 @@ export default function DashboardBuilderPage() {
                 <DashboardGrid
                     widgets={widgets}
                     dataMap={processedDataMap}
+                    isEditable={true}
                 />
             )}
 

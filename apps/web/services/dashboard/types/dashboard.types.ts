@@ -59,4 +59,12 @@ export interface Dashboard {
     createdAt: number
 
     updatedAt: number
+
+    ownerId?: string
+    publicAccess?: "private" | "public_viewer" | "public_editor"
+    teamPermissions?: Record<string, {
+        role: "editor" | "viewer"
+        displayName: string
+        email: string
+    }>
 }
