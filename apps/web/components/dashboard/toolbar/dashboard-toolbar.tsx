@@ -11,8 +11,8 @@ interface Props {
     onOpenShare: () => void
 
     // Phase 11 Export Props
-    dashboard: any
-    dataMap: Record<string, any[]>
+    dashboard?: any
+    dataMap?: Record<string, any[]>
 }
 
 export function DashboardToolbar({
@@ -26,7 +26,7 @@ export function DashboardToolbar({
 }: Props) {
     return (
         <div className="flex gap-3 items-center">
-            {dashboard && (
+            {dashboard && dataMap && (
                 <ExportDropdown
                     dashboard={dashboard}
                     dataMap={dataMap}

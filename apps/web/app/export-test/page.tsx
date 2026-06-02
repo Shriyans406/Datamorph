@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, FileSpreadsheet, Download, Calendar, Play, Mail, Trash2, RefreshCw, Layers } from "lucide-react"
+import { FileText, FileSpreadsheet, Download, Calendar, Play, Mail, Trash2, RefreshCw, Layers, Loader2 } from "lucide-react"
 import { exportToCSV, exportToExcel } from "@/services/export/csv-excel-export"
 import { generateDashboardPDF, exportWidgetAsPNG } from "@/services/export/pdf-export"
 import { createReportSchedule, getDashboardSchedules, deleteReportSchedule, ScheduledReport } from "@/services/export/report-scheduler"
