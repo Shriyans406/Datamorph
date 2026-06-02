@@ -21,7 +21,7 @@ export function DashboardWidgetCard({
     }
 
     return (
-        <div className="border rounded-2xl bg-background p-4 h-full">
+        <div className="border rounded-2xl bg-background p-4 h-full" data-widget-id={widget.id}>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold">
                     {vizConfig.title}

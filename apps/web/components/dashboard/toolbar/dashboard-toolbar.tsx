@@ -1,11 +1,18 @@
+// Replace all contents in c:\Users\HP\OneDrive\Desktop\datamorph\apps\web\components\dashboard\toolbar\dashboard-toolbar.tsx
+import { ExportDropdown } from "@/components/export/export-dropdown"
+
 interface Props {
     onSave: () => void
     onAddWidget: () => void
-    
+
     // Permission Props
     canEdit: boolean
     canShare: boolean
     onOpenShare: () => void
+
+    // Phase 11 Export Props
+    dashboard: any
+    dataMap: Record<string, any[]>
 }
 
 export function DashboardToolbar({
@@ -14,9 +21,19 @@ export function DashboardToolbar({
     canEdit,
     canShare,
     onOpenShare,
+    dashboard,
+    dataMap,
 }: Props) {
     return (
-        <div className="flex gap-3">
+        <div className="flex gap-3 items-center">
+            {dashboard && (
+                <ExportDropdown
+                    dashboard={dashboard}
+                    dataMap={dataMap}
+                    canSchedule={canEdit}
+                />
+            )}
+
             {canShare && (
                 <button
                     onClick={onOpenShare}

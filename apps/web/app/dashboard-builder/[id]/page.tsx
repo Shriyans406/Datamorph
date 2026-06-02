@@ -151,14 +151,14 @@ export default function CollaborativeDashboardPage() {
 
         return () => {
             clearTimeout(timer)
-            try { unsubscribe() } catch (_) {}
+            try { unsubscribe() } catch (_) { }
         }
     }, [dashboardId, tokenResolved, errorScreen])
 
     // ── 3. Handle Presence Join ───────────────────────────────────────────
     useEffect(() => {
         if (loading || errorScreen !== "none" || !canView) return
-        
+
         const userPresence: UserPresence = {
             uid: currentUser.uid,
             displayName: currentUser.displayName,
@@ -166,7 +166,7 @@ export default function CollaborativeDashboardPage() {
         }
 
         const unsubscribe = joinDashboardPresence(dashboardId, userPresence, setActiveUsers)
-        return () => { try { unsubscribe() } catch (_) {} }
+        return () => { try { unsubscribe() } catch (_) { } }
     }, [dashboardId, currentUser, loading, errorScreen, canView])
 
     // ── 4. Retrieve Widget Datasets ──────────────────────────────────────
@@ -272,10 +272,10 @@ export default function CollaborativeDashboardPage() {
     if (!canView || errorScreen === "locked" || userRole === "none") {
         return (
             <div className="flex flex-col min-h-screen">
-                <MockIdentityBar 
-                    activeUser={currentUser} 
-                    onSelectUser={setCurrentUser} 
-                    currentResolvedRole="NONE" 
+                <MockIdentityBar
+                    activeUser={currentUser}
+                    onSelectUser={setCurrentUser}
+                    currentResolvedRole="NONE"
                 />
                 <main className="flex-1 flex items-center justify-center p-6 bg-slate-50 dark:bg-slate-900">
                     <div className="border border-border rounded-2xl bg-card text-card-foreground p-8 max-w-md w-full text-center shadow-xl space-y-5">
@@ -296,10 +296,10 @@ export default function CollaborativeDashboardPage() {
     return (
         <div className="flex flex-col min-h-screen">
             {/* Permission System Simulator Header */}
-            <MockIdentityBar 
-                activeUser={currentUser} 
-                onSelectUser={setCurrentUser} 
-                currentResolvedRole={userRole} 
+            <MockIdentityBar
+                activeUser={currentUser}
+                onSelectUser={setCurrentUser}
+                currentResolvedRole={userRole}
             />
 
             <LiveCursors
@@ -308,7 +308,7 @@ export default function CollaborativeDashboardPage() {
                 activeUsers={activeUsers}
             >
                 <main className="p-8 space-y-6">
-                    
+
                     {/* ── Top Bar ── */}
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div className="space-y-1 flex-1 min-w-0">
@@ -327,7 +327,7 @@ export default function CollaborativeDashboardPage() {
                                 )}
                             </div>
                             <p className="text-muted-foreground text-xs">
-                                Role: <span className="text-indigo-500 font-semibold">{userRole.toUpperCase()}</span> • 
+                                Role: <span className="text-indigo-500 font-semibold">{userRole.toUpperCase()}</span> •
                                 {canEdit ? " Realtime editing active" : " Read-only view only"}
                                 {isSaving && <span className="ml-2 text-indigo-500 animate-pulse">Saving…</span>}
                             </p>
@@ -357,6 +357,8 @@ export default function CollaborativeDashboardPage() {
                                 canEdit={canEdit}
                                 canShare={canManageShare}
                                 onOpenShare={() => setIsShareModalOpen(true)}
+                                dashboard={dashboard}
+                                dataMap={processedDataMap}
                             />
                         </div>
                     </div>
@@ -430,10 +432,10 @@ export default function CollaborativeDashboardPage() {
                     )}
 
                     {/* ── Realtime Comments Thread Panel ── */}
-                    <CommentsPanel 
-                        dashboardId={dashboardId} 
-                        userName={currentUser.displayName} 
-                        userColor={currentUser.color} 
+                    <CommentsPanel
+                        dashboardId={dashboardId}
+                        userName={currentUser.displayName}
+                        userColor={currentUser.color}
                     />
                 </main>
             </LiveCursors>
