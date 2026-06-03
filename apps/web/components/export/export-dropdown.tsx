@@ -75,7 +75,8 @@ export function ExportDropdown({ dashboard, dataMap, canSchedule }: Props) {
         try {
             await generateDashboardPDF({
                 dashboardName: dashboard.name,
-                widgets: dashboard.widgets
+                widgets: dashboard.widgets,
+                dataMap
             })
             toast.success("PDF generated and downloaded!")
         } catch (err) {

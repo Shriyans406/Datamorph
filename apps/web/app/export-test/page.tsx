@@ -135,7 +135,8 @@ export default function ExportTestPage() {
         try {
             await generateDashboardPDF({
                 dashboardName: selectedDashboard.name ?? "Dashboard",
-                widgets: selectedDashboard.widgets ?? []
+                widgets: selectedDashboard.widgets ?? [],
+                dataMap
             })
             toast.success("PDF Report generated!")
         } catch (e) {
