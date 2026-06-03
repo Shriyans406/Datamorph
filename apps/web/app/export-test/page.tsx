@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, FileSpreadsheet, Download, Calendar, Play, Mail, Trash2, RefreshCw, Layers, Loader2 } from "lucide-react"
+import { FileText, FileSpreadsheet, Download, Calendar, Play, Trash2, RefreshCw, Layers, Loader2, Database } from "lucide-react"
 import { exportToCSV, exportToExcel } from "@/services/export/csv-excel-export"
 import { generateDashboardPDF, exportWidgetAsPNG } from "@/services/export/pdf-export"
 import { createReportSchedule, getDashboardSchedules, deleteReportSchedule, ScheduledReport } from "@/services/export/report-scheduler"
@@ -9,36 +9,25 @@ import { db } from "@/lib/firebase"
 import { collection, onSnapshot, query, deleteDoc, doc } from "firebase/firestore"
 import { toast } from "sonner"
 
-const MOCK_DASHBOARD = {
-    id: "export-test-dashboard",
-    name: "Enterprise Revenue Dashboard",
-    widgets: [
-        { id: "widget-1", title: "Monthly Sales Revenue", type: "bar", datasetId: "sales-data" },
-        { id: "widget-2", title: "Customer Signups", type: "line", datasetId: "signups-data" },
-        { id: "widget-3", title: "Target Conversion Rate", type: "kpi", datasetId: "conversion-data" }
-    ]
-}
-
-const MOCK_DATA = {
-    "sales-data": [
-        { Month: "Jan", Revenue: 45000, Target: 40000 },
-        { Month: "Feb", Revenue: 52000, Target: 42000 },
-        { Month: "Mar", Revenue: 49000, Target: 44000 },
-        { Month: "Apr", Revenue: 63000, Target: 46000 }
-    ],
-    "signups-data": [
-        { Month: "Jan", Registrations: 340, Organic: 200 },
-        { Month: "Feb", Registrations: 410, Organic: 250 },
-        { Month: "Mar", Registrations: 390, Organic: 220 },
-        { Month: "Apr", Registrations: 580, Organic: 310 }
-    ],
-    "conversion-data": [
-        { Goal: "Enterprise Leads", Rate: 0.18, Count: 145 },
-        { Goal: "Self-Service Trial", Rate: 0.05, Count: 890 }
-    ]
+// ─── Types ───────────────────────────────────────────────────────────────────
+interface RealDataset {
+    id: string
+    metadata?: { name?: string; rows?: number; columns?: number }
+    rows?: any[]
+    widgets?: any[]
+    name?: string
 }
 
 export default function ExportTestPage() {
+    // Real Firestore data
+    const [datasets, setDatasets] = useState<RealDataset[]>([])
+    const [dashboards, setDashboards] = useState<any[]>([])
+    const [selectedDashboardId, setSelectedDashboardId] = useState<string>("")
+    const [selectedDashboard, setSelectedDashboard] = useState<any>(null)
+    const [dataMap, setDataMap] = useState<Record<string, any[]>>({})
+    const [loadingData, setLoadingData] = useState(true)
+
+    // Schedule form
     const [email, setEmail] = useState("")
     const [format, setFormat] = useState<"pdf" | "excel" | "csv">("pdf")
     const [frequency, setFrequency] = useState<"daily" | "weekly" | "monthly">("daily")
@@ -48,12 +37,42 @@ export default function ExportTestPage() {
     const [isTriggeringCron, setIsTriggeringCron] = useState(false)
     const [loadingSchedules, setLoadingSchedules] = useState(true)
 
+    // ── 1. Load real datasets & dashboards from Firestore ─────────────────
+    useEffect(() => {
+        const unsubDatasets = onSnapshot(collection(db, "datasets"), snap => {
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() })) as RealDataset[]
+            setDatasets(list)
+            // Build dataMap: datasetId -> rows
+            const map: Record<string, any[]> = {}
+            list.forEach(ds => { map[ds.id] = ds.rows ?? [] })
+            setDataMap(map)
+        })
+
+        const unsubDashboards = onSnapshot(collection(db, "dashboards"), snap => {
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+            setDashboards(list)
+            if (list.length > 0 && !selectedDashboardId) {
+                setSelectedDashboardId(list[0].id)
+            }
+            setLoadingData(false)
+        }, () => setLoadingData(false))
+
+        return () => { unsubDatasets(); unsubDashboards() }
+    }, [])
+
+    // ── 2. Keep selectedDashboard in sync ─────────────────────────────────
+    useEffect(() => {
+        const found = dashboards.find(d => d.id === selectedDashboardId)
+        setSelectedDashboard(found ?? null)
+    }, [selectedDashboardId, dashboards])
+
+    // ── 3. Real-time schedules & email log ────────────────────────────────
     useEffect(() => {
         const qSchedules = query(collection(db, "scheduled_reports"))
         const unsubSchedules = onSnapshot(qSchedules, (snap) => {
             const data = snap.docs
                 .map(d => ({ id: d.id, ...d.data() }))
-                .filter((s: any) => s.dashboardId === MOCK_DASHBOARD.id)
+                .filter((s: any) => !selectedDashboardId || s.dashboardId === selectedDashboardId)
             setSchedules(data as ScheduledReport[])
             setLoadingSchedules(false)
         })
@@ -67,41 +86,56 @@ export default function ExportTestPage() {
             }
         })
 
-        return () => {
-            unsubSchedules()
-            unsubEmails()
-        }
-    }, [])
+        return () => { unsubSchedules(); unsubEmails() }
+    }, [selectedDashboardId])
 
+    // ── Export Handlers (real data) ───────────────────────────────────────
     const handleInstantCSV = () => {
-        toast.info("Downloading CSV sheets...")
-        MOCK_DASHBOARD.widgets.forEach(w => {
-            const rowsData = MOCK_DATA[w.datasetId as keyof typeof MOCK_DATA]
-            const headers = Object.keys(rowsData[0])
-            const rows = rowsData.map(item => headers.map(h => (item as any)[h]))
-            exportToCSV(`${w.title.toLowerCase().replace(/\s+/g, "_")}.csv`, headers, rows)
+        if (!selectedDashboard || (selectedDashboard.widgets ?? []).length === 0) {
+            // Fallback: export all datasets as CSV
+            if (datasets.length === 0) { toast.error("No data available"); return }
+            toast.info("Downloading all datasets as CSV...")
+            datasets.forEach(ds => {
+                const rows = ds.rows ?? []
+                if (rows.length === 0) return
+                const headers = Object.keys(rows[0])
+                exportToCSV(`${ds.metadata?.name ?? ds.id}.csv`, headers, rows.map(r => headers.map(h => r[h])))
+            })
+            toast.success("CSV files downloaded!")
+            return
+        }
+        toast.info("Downloading CSV for dashboard widgets...")
+        selectedDashboard.widgets.forEach((w: any) => {
+            const rows = dataMap[w.datasetId] ?? []
+            if (rows.length === 0) return
+            const headers = Object.keys(rows[0])
+            exportToCSV(`${w.title ?? "widget"}_data.csv`, headers, rows.map(r => headers.map(h => r[h])))
         })
         toast.success("CSV files downloaded!")
     }
 
     const handleInstantExcel = () => {
-        toast.info("Downloading combined Excel file...")
-        const sheets = MOCK_DASHBOARD.widgets.map(w => {
-            const rowsData = MOCK_DATA[w.datasetId as keyof typeof MOCK_DATA]
-            const headers = Object.keys(rowsData[0])
-            const rows = rowsData.map(item => headers.map(h => (item as any)[h]))
-            return { name: w.title.substring(0, 30), headers, rows }
-        })
-        exportToExcel("enterprise_analytics_report.xlsx", sheets)
-        toast.success("Excel report downloaded!")
+        if (datasets.length === 0) { toast.error("No datasets available"); return }
+        toast.info("Downloading datasets as Excel sheets...")
+        const sheets = datasets
+            .filter(ds => (ds.rows ?? []).length > 0)
+            .map(ds => {
+                const rows = ds.rows ?? []
+                const headers = Object.keys(rows[0])
+                return { name: (ds.metadata?.name ?? ds.id).substring(0, 30), headers, rows: rows.map(r => headers.map(h => r[h])) }
+            })
+        if (sheets.length === 0) { toast.error("No row data in any dataset"); return }
+        exportToExcel("datamorph_export", sheets)
+        toast.success("Excel sheets downloaded!")
     }
 
     const handleInstantPDF = async () => {
+        if (!selectedDashboard) { toast.error("Please select a dashboard first"); return }
         toast.info("Rendering PDF report...")
         try {
             await generateDashboardPDF({
-                dashboardName: MOCK_DASHBOARD.name,
-                widgets: MOCK_DASHBOARD.widgets
+                dashboardName: selectedDashboard.name ?? "Dashboard",
+                widgets: selectedDashboard.widgets ?? []
             })
             toast.success("PDF Report generated!")
         } catch (e) {
@@ -115,10 +149,11 @@ export default function ExportTestPage() {
             toast.error("Valid email required")
             return
         }
+        if (!selectedDashboard) { toast.error("Select a dashboard first"); return }
         try {
             await createReportSchedule({
-                dashboardId: MOCK_DASHBOARD.id,
-                dashboardName: MOCK_DASHBOARD.name,
+                dashboardId: selectedDashboard.id,
+                dashboardName: selectedDashboard.name ?? "Dashboard",
                 userId: "test-user-admin",
                 email,
                 format,
@@ -126,7 +161,7 @@ export default function ExportTestPage() {
             })
             toast.success("Schedule registered!")
             setEmail("")
-        } catch (err) {
+        } catch {
             toast.error("Failed to register schedule")
         }
     }
@@ -135,16 +170,17 @@ export default function ExportTestPage() {
         try {
             await deleteReportSchedule(id)
             toast.success("Schedule deleted!")
-        } catch (e) {
+        } catch {
             toast.error("Deletion failed")
         }
     }
 
     const handleTriggerCron = async () => {
+        if (!selectedDashboard) { toast.error("Select a dashboard first"); return }
         setIsTriggeringCron(true)
         toast.info("Executing server-side cron engine...")
         try {
-            const res = await fetch(`/api/reports/cron?simulate=true&dashboardId=${MOCK_DASHBOARD.id}`, {
+            const res = await fetch(`/api/reports/cron?simulate=true&dashboardId=${selectedDashboard.id}`, {
                 method: "POST"
             })
             const data = await res.json()
@@ -153,7 +189,7 @@ export default function ExportTestPage() {
             } else {
                 toast.error("Cron failed: " + data.error)
             }
-        } catch (e) {
+        } catch {
             toast.error("Server API route failed")
         } finally {
             setIsTriggeringCron(false)
@@ -162,7 +198,7 @@ export default function ExportTestPage() {
 
     const handleClearEmails = async () => {
         toast.info("Clearing SMTP logs...")
-        const promises = emailsLog.map(email => deleteDoc(doc(db, "dispatched_emails", email.id)))
+        const promises = emailsLog.map(e => deleteDoc(doc(db, "dispatched_emails", e.id)))
         await Promise.all(promises)
         setSelectedEmail(null)
         toast.success("Outbox logs deleted!")
@@ -170,6 +206,7 @@ export default function ExportTestPage() {
 
     return (
         <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-8 font-sans">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
@@ -177,68 +214,108 @@ export default function ExportTestPage() {
                         Phase 11 — Export & Reporting Verification Panel
                     </h1>
                     <p className="text-xs text-slate-400 mt-1">
-                        Verify instant downloads, document schemas, schedules, and mock email outboxes locally.
+                        All data is live from Firestore — no mock values.
                     </p>
                 </div>
             </div>
 
-            {/* Test Dashboard Preview */}
-            <div className="space-y-4">
-                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Simulated Interactive Dashboard Preview</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {MOCK_DASHBOARD.widgets.map(w => (
-                        <div
-                            key={w.id}
-                            data-widget-id={w.id}
-                            className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between h-72 hover:border-slate-700 transition-all animate-in fade-in"
-                        >
-                            <div>
-                                <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-4">
-                                    <h4 className="font-semibold text-xs text-slate-200">{w.title}</h4>
-                                    <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 font-semibold px-2 py-0.5 rounded-md uppercase">
-                                        {w.type}
-                                    </span>
-                                </div>
-                                <div className="space-y-2 py-2 overflow-x-auto">
-                                    <table className="w-full text-left text-[10px] text-slate-400">
-                                        <thead>
-                                            <tr className="border-b border-slate-800/50">
-                                                {Object.keys(MOCK_DATA[w.datasetId as keyof typeof MOCK_DATA][0]).map(h => (
-                                                    <th key={h} className="pb-1 font-semibold text-slate-400">{h}</th>
-                                                ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {MOCK_DATA[w.datasetId as keyof typeof MOCK_DATA].map((row, idx) => (
-                                                <tr key={idx} className="border-b border-slate-900/50 last:border-0">
-                                                    {Object.values(row).map((val, vIdx) => (
-                                                        <td key={vIdx} className="py-1">{typeof val === "number" && val < 1 ? `${(val * 100).toFixed(0)}%` : val}</td>
-                                                    ))}
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                            <div className="flex justify-end pt-4 border-t border-slate-800/50 mt-4">
-                                <button
-                                    onClick={() => exportWidgetAsPNG(w.id, w.title)}
-                                    className="flex items-center gap-1.5 text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-                                >
-                                    <Download className="w-3 h-3" /> Capture PNG
-                                </button>
-                            </div>
-                        </div>
-                    ))}
+            {/* Dashboard Selector */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2 text-xs text-slate-400 font-semibold uppercase tracking-wider">
+                    <Database className="w-4 h-4 text-indigo-400" />
+                    Active Dashboard:
                 </div>
+                {loadingData ? (
+                    <div className="flex items-center gap-2 text-slate-500 text-xs">
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                        Loading Firestore data...
+                    </div>
+                ) : dashboards.length === 0 ? (
+                    <p className="text-xs text-slate-500">No dashboards found — create one in Dashboard Builder first</p>
+                ) : (
+                    <select
+                        value={selectedDashboardId}
+                        onChange={e => setSelectedDashboardId(e.target.value)}
+                        className="bg-slate-950 border border-slate-700 rounded-xl py-2 px-3 text-xs text-slate-100 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                    >
+                        {dashboards.map(d => (
+                            <option key={d.id} value={d.id}>
+                                {d.name ?? d.id} ({d.widgets?.length ?? 0} widgets)
+                            </option>
+                        ))}
+                    </select>
+                )}
+                <span className="text-xs text-slate-600">{datasets.length} dataset(s) in Firestore</span>
             </div>
 
-            {/* Verification Form Actions */}
+            {/* Live Preview of real widget data */}
+            {selectedDashboard && (selectedDashboard.widgets ?? []).length > 0 && (
+                <div className="space-y-4">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Live Dashboard Widget Preview</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {(selectedDashboard.widgets ?? []).map((w: any) => {
+                            const rows = dataMap[w.datasetId] ?? []
+                            return (
+                                <div
+                                    key={w.id}
+                                    data-widget-id={w.id}
+                                    className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col justify-between h-72 hover:border-slate-700 transition-all"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-4">
+                                            <h4 className="font-semibold text-xs text-slate-200">{w.title ?? w.id}</h4>
+                                            <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 font-semibold px-2 py-0.5 rounded-md uppercase">
+                                                {w.type ?? "widget"}
+                                            </span>
+                                        </div>
+                                        {rows.length === 0 ? (
+                                            <p className="text-xs text-slate-600 text-center py-8">No data for this widget</p>
+                                        ) : (
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left text-[10px] text-slate-400">
+                                                    <thead>
+                                                        <tr className="border-b border-slate-800/50">
+                                                            {Object.keys(rows[0]).slice(0, 4).map(h => (
+                                                                <th key={h} className="pb-1 font-semibold text-slate-400 pr-2">{h}</th>
+                                                            ))}
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {rows.slice(0, 5).map((row: any, idx: number) => (
+                                                            <tr key={idx} className="border-b border-slate-900/50 last:border-0">
+                                                                {Object.keys(rows[0]).slice(0, 4).map((h, vIdx) => (
+                                                                    <td key={vIdx} className="py-1 pr-2 truncate max-w-[60px]">
+                                                                        {typeof row[h] === "number" && row[h] < 1 ? `${(row[h] * 100).toFixed(0)}%` : row[h]}
+                                                                    </td>
+                                                                ))}
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-end pt-4 border-t border-slate-800/50 mt-4">
+                                        <button
+                                            onClick={() => exportWidgetAsPNG(w.id, w.title ?? "Widget View")}
+                                            className="flex items-center gap-1.5 text-[10px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                                        >
+                                            <Download className="w-3 h-3" /> Capture PNG
+                                        </button>
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* Action + Schedule Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-6">
                     <div>
                         <h3 className="text-sm font-bold text-white">1. Client-Side Instant Export Actions</h3>
-                        <p className="text-xs text-slate-400 mt-1">Simulate instant client-side download streams.</p>
+                        <p className="text-xs text-slate-400 mt-1">Downloads use real Firestore data.</p>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <button
@@ -315,7 +392,7 @@ export default function ExportTestPage() {
                                         <div key={s.id} className="flex items-center justify-between bg-slate-900 border border-slate-800 px-3 py-2 rounded-lg text-xs">
                                             <div className="truncate pr-3">
                                                 <span className="font-semibold text-slate-200">{s.email}</span>
-                                                <span className="text-[10px] text-slate-400 ml-2">({s.format.toUpperCase()} • Daily)</span>
+                                                <span className="text-[10px] text-slate-400 ml-2">({s.format.toUpperCase()} • {s.frequency ?? "daily"})</span>
                                             </div>
                                             <button
                                                 onClick={() => s.id && handleDeleteSchedule(s.id)}
@@ -331,7 +408,7 @@ export default function ExportTestPage() {
                     </div>
                 </div>
 
-                {/* Simulated Outbox Log Visual Console */}
+                {/* SMTP Log Outbox */}
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between gap-6">
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
@@ -341,7 +418,7 @@ export default function ExportTestPage() {
                             </div>
                             <button
                                 onClick={handleTriggerCron}
-                                disabled={isTriggeringCron}
+                                disabled={isTriggeringCron || !selectedDashboard}
                                 className="flex items-center gap-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl px-4 py-2 text-xs font-semibold tracking-wide disabled:opacity-50 cursor-pointer shadow-md"
                             >
                                 {isTriggeringCron ? (
@@ -388,7 +465,7 @@ export default function ExportTestPage() {
                                             {selectedEmail.attachment && (
                                                 <div className="bg-slate-950/80 border border-indigo-500/20 p-3 rounded-xl flex items-center justify-between">
                                                     <div className="min-w-0 pr-3">
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Attachment Attached</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Attachment</p>
                                                         <p className="text-[11px] text-slate-200 font-medium truncate mt-0.5">{selectedEmail.attachment.name}</p>
                                                     </div>
                                                     <a

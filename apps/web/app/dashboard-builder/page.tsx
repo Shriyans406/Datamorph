@@ -77,13 +77,13 @@ export default function DashboardBuilderPage() {
     }
 
     return (
-        <main className="p-8 space-y-6">
+        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-6">
             <div className="flex items-start justify-between">
                 <div className="space-y-1">
                     <input
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="text-3xl font-bold bg-transparent outline-none border-b border-transparent focus:border-border"
+                        className="text-3xl font-bold bg-transparent outline-none border-b border-transparent focus:border-slate-600 text-white w-full"
                         placeholder="Dashboard Name"
                     />
                     <p className="text-muted-foreground text-sm">
@@ -106,8 +106,8 @@ export default function DashboardBuilderPage() {
             />
 
             {widgets.length === 0 ? (
-                <div className="border-2 border-dashed rounded-2xl p-20 text-center text-muted-foreground">
-                    <p className="text-lg font-medium mb-2">No widgets yet</p>
+                <div className="border-2 border-dashed border-slate-800 rounded-2xl p-20 text-center text-slate-500">
+                    <p className="text-lg font-medium mb-2 text-slate-300">No widgets yet</p>
                     <p className="text-sm">Click &quot;Add Widget&quot; above to add your first chart</p>
                 </div>
             ) : (

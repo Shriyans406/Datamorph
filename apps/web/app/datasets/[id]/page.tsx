@@ -31,25 +31,25 @@ export default function DatasetPage() {
 
     if (notFound) {
         return (
-            <main className="p-10">
-                Dataset not found
+            <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+                <p className="text-slate-400 text-sm">Dataset not found</p>
             </main>
         )
     }
 
     if (!dataset) {
         return (
-            <main className="p-10">
-                Loading...
+            <main className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+                <p className="text-slate-400 text-sm animate-pulse">Loading dataset...</p>
             </main>
         )
     }
 
     return (
-        <main className="p-10 space-y-8">
+        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-8">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold">
+                <h1 className="text-3xl font-bold text-white">
                     {dataset.metadata.name}
                 </h1>
 
@@ -91,11 +91,11 @@ export default function DatasetPage() {
 
             {/* Actions */}
             <div className="flex gap-3">
-                <button className="border rounded-xl px-4 py-2 hover:bg-muted transition">
+                <button className="border border-slate-700 text-slate-300 rounded-xl px-4 py-2 hover:bg-slate-800 transition text-sm font-medium">
                     Export
                 </button>
 
-                <button className="border rounded-xl px-4 py-2 hover:bg-muted transition">
+                <button onClick={() => window.location.reload()} className="border border-slate-700 text-slate-300 rounded-xl px-4 py-2 hover:bg-slate-800 transition text-sm font-medium">
                     Refresh
                 </button>
             </div>
