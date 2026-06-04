@@ -1,26 +1,84 @@
 import { NextRequest, NextResponse } from "next/server"
-import { db } from "@/lib/firebase"
-import { collection, getDocs } from "firebase/firestore"
 import { fetchGoogleSheetRows } from "@/services/connectors/google-sheets/google-sheets.service"
 import { fetchAirtableRows } from "@/services/connectors/airtable/airtable.service"
 import { fetchRestApiRows } from "@/services/connectors/api/rest-api.service"
-import { logSyncRun, updateConnector } from "@/repositories/connectors/connector.repository"
-import { persistDataset, updateDataset } from "@/repositories/datasets/dataset.repository"
 import { inferSchema } from "@/services/datasets/schema/infer-schema"
 import { generateStatistics } from "@/services/datasets/statistics/generate-statistics"
 import { generateQualityReport } from "@/services/datasets/quality/quality-report"
 import { generatePreview } from "@/services/datasets/preview/generate-preview"
 import { generateDatasetProfile } from "@/services/datasets/profiling/generate-profile"
-import { nanoid } from "nanoid"
+import {
+    firestoreGetDocs,
+    firestoreAddDoc,
+    firestoreSetDoc,
+    firestoreUpdateDoc,
+} from "@/lib/firestore-server"
+
+async function getConnectors(): Promise<any[]> {
+    return firestoreGetDocs("data_connectors")
+}
+
+async function saveDatasetServer(dataset: any): Promise<string> {
+    const id = await firestoreAddDoc("datasets", {
+        metadata: dataset.metadata,
+        schema: dataset.schema,
+        statistics: dataset.statistics,
+        quality: dataset.quality,
+        profile: dataset.profile,
+        preview: dataset.preview,
+        createdAt: new Date().toISOString(),
+    })
+    // Save rows separately
+    await firestoreAddDoc("dataset_rows", {
+        datasetId: id,
+        rows: dataset.rows.slice(0, 500),
+    })
+    return id
+}
+
+async function updateDatasetServer(id: string, dataset: any): Promise<void> {
+    await firestoreSetDoc("datasets", id, {
+        metadata: dataset.metadata,
+        schema: dataset.schema,
+        statistics: dataset.statistics,
+        quality: dataset.quality,
+        profile: dataset.profile,
+        preview: dataset.preview,
+        updatedAt: new Date().toISOString(),
+    })
+    // Update rows — find existing rows doc
+    const rowsDocs = await firestoreGetDocs("dataset_rows")
+    const existingRows = rowsDocs.find((d: any) => d.datasetId === id)
+    if (existingRows?.id) {
+        await firestoreUpdateDoc("dataset_rows", existingRows.id, {
+            rows: dataset.rows.slice(0, 500),
+        })
+    } else {
+        await firestoreAddDoc("dataset_rows", {
+            datasetId: id,
+            rows: dataset.rows.slice(0, 500),
+        })
+    }
+}
+
+async function updateConnectorServer(id: string, updates: Record<string, any>): Promise<void> {
+    await firestoreUpdateDoc("data_connectors", id, updates)
+}
+
+async function logSyncRunServer(log: Record<string, any>): Promise<void> {
+    await firestoreAddDoc("connector_sync_logs", {
+        ...log,
+        syncTime: log.syncTime || Date.now(),
+    })
+}
 
 export async function POST(req: NextRequest) {
     try {
         const urlObj = new URL(req.url)
         const filterId = urlObj.searchParams.get("id")
 
-        // 1. Fetch connectors
-        const snap = await getDocs(collection(db, "data_connectors"))
-        const connectors = snap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
+        // 1. Fetch connectors via REST (bypasses Firebase Client SDK emulator issue)
+        const connectors = await getConnectors()
 
         const activeConnectors = connectors.filter(c => {
             if (filterId && c.id !== filterId) return false
@@ -59,41 +117,41 @@ export async function POST(req: NextRequest) {
                         rows: rows.length,
                         columns: schema.columns.length,
                         uploadedAt: new Date().toISOString(),
-                        connectorId: conn.id
+                        connectorId: conn.id,
                     },
                     schema,
                     statistics,
                     quality,
                     preview,
                     profile,
-                    rows
+                    rows,
                 }
 
                 let targetDatasetId = conn.datasetId
 
-                // 4. Upsert dataset doc
+                // 4. Upsert dataset doc via REST
                 if (targetDatasetId) {
-                    await updateDataset(targetDatasetId, datasetPayload)
+                    await updateDatasetServer(targetDatasetId, datasetPayload)
                 } else {
-                    targetDatasetId = await persistDataset(datasetPayload)
+                    targetDatasetId = await saveDatasetServer(datasetPayload)
                 }
 
                 // 5. Update connector
-                await updateConnector(conn.id, {
+                await updateConnectorServer(conn.id, {
                     datasetId: targetDatasetId,
                     lastSyncAt: new Date().toISOString(),
-                    status: "active"
+                    status: "active",
                 })
 
                 // 6. Log success
-                await logSyncRun({
+                await logSyncRunServer({
                     connectorId: conn.id,
                     connectorName: conn.name,
                     type: conn.type,
                     status: "success",
                     error: null,
                     syncTime: Date.now(),
-                    recordsSynced: rows.length
+                    recordsSynced: rows.length,
                 })
 
                 results.push({ id: conn.id, status: "success", count: rows.length })
@@ -102,15 +160,15 @@ export async function POST(req: NextRequest) {
                 console.error(`Connector sync failed for [${conn.id}]`, err)
                 errorMsg = err.message || "Failed data ingestion"
 
-                await updateConnector(conn.id, { status: "error" })
-                await logSyncRun({
+                await updateConnectorServer(conn.id, { status: "error" })
+                await logSyncRunServer({
                     connectorId: conn.id,
                     connectorName: conn.name,
                     type: conn.type,
                     status: "failed",
                     error: errorMsg,
                     syncTime: Date.now(),
-                    recordsSynced: 0
+                    recordsSynced: 0,
                 })
 
                 results.push({ id: conn.id, status: "failed", error: errorMsg })

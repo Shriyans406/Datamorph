@@ -14,10 +14,7 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-const app =
-    getApps().length > 0
-        ? getApp()
-        : initializeApp(firebaseConfig)
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp()
 
 export const auth = getAuth(app)
 export const db = getFirestore(app)
@@ -25,8 +22,16 @@ export const storage = getStorage(app)
 export const realtimeDb = getDatabase(app)
 
 if (process.env.NEXT_PUBLIC_USE_EMULATORS === "true") {
-    connectAuthEmulator(auth, "http://127.0.0.1:9099")
-    connectFirestoreEmulator(db, "127.0.0.1", 8085)
-    connectStorageEmulator(storage, "127.0.0.1", 9199)
-    connectDatabaseEmulator(realtimeDb, "127.0.0.1", 9000)
+    try {
+        connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true })
+    } catch (_) { /* already connected */ }
+    try {
+        connectFirestoreEmulator(db, "127.0.0.1", 8085)
+    } catch (_) { /* already connected */ }
+    try {
+        connectStorageEmulator(storage, "127.0.0.1", 9199)
+    } catch (_) { /* already connected */ }
+    try {
+        connectDatabaseEmulator(realtimeDb, "127.0.0.1", 9000)
+    } catch (_) { /* already connected */ }
 }
