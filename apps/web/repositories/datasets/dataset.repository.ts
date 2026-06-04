@@ -4,6 +4,8 @@ import {
     getDocs,
     doc,
     getDoc,
+    setDoc,
+    updateDoc
 } from "firebase/firestore"
 
 import { db } from "@/lib/firebase"
@@ -76,5 +78,32 @@ export async function getDatasetById(
         id: datasetDoc.id,
         ...datasetDoc.data(),
         rows: rowsDoc?.data()?.rows || [],
+    }
+}
+
+export async function updateDataset(id: string, dataset: any): Promise<void> {
+    const datasetDocRef = doc(db, "datasets", id)
+    await setDoc(datasetDocRef, {
+        metadata: dataset.metadata,
+        schema: dataset.schema,
+        statistics: dataset.statistics,
+        quality: dataset.quality,
+        profile: dataset.profile,
+        preview: dataset.preview,
+        createdAt: dataset.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+    }, { merge: true })
+
+    const rowsSnapshot = await getDocs(rowsCollection)
+    const rowsDoc = rowsSnapshot.docs.find(d => d.data().datasetId === id)
+    if (rowsDoc) {
+        await updateDoc(doc(db, "dataset_rows", rowsDoc.id), {
+            rows: dataset.rows.slice(0, 500)
+        })
+    } else {
+        await addDoc(rowsCollection, {
+            datasetId: id,
+            rows: dataset.rows.slice(0, 500)
+        })
     }
 }
