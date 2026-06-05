@@ -22,9 +22,19 @@ Key Rules:
 3. For "pie" charts, select high-impact aggregation columns with low cardinality (few unique values).
 4. No introduction, no markdown block wrappers, just valid parsed JSON content.`;
 
+        // Compress rows by slicing to max 2 rows, and keeping only first 6 columns
+        const limitedColumns = columns.slice(0, 6)
+        const compressedRows = sampleRows.slice(0, 2).map(row => {
+            const stripped: Record<string, any> = {}
+            limitedColumns.forEach(c => {
+                stripped[c] = typeof row[c] === "string" ? row[c].slice(0, 40) : row[c]
+            })
+            return stripped
+        })
+
         const prompt = `Dataset Name: "${datasetName}"
-Available Columns: ${JSON.stringify(columns)}
-Sample Row Data: ${JSON.stringify(sampleRows)}
+Available Columns: ${JSON.stringify(limitedColumns)}
+Sample Row Data: ${JSON.stringify(compressedRows)}
 
 Recommend the best chart config:`;
 
@@ -34,9 +44,6 @@ Recommend the best chart config:`;
     /**
      * Prompts Gemini to parse conversational text into a structured query engine schema
      */
-    /**
- * Prompts Gemini to parse conversational text into a structured query engine schema
- */
     getQueryParserPrompt(
         naturalLanguageQuery: string,
         columns: string[]
@@ -63,13 +70,12 @@ Key Rules:
 4. Reply strictly with the JSON representation. Do not include markdown wrappers.`;
 
         const prompt = `User Filter Request: "${naturalLanguageQuery}"
-Valid Columns list: ${JSON.stringify(columns)}
+Valid Columns list: ${JSON.stringify(columns.slice(0, 20))}
 
 Generate the parsed query JSON structure:`;
 
         return { system, prompt };
     },
-
 
     /**
      * Prompts Gemini to generate descriptive summaries and find anomalies in column stats
@@ -86,7 +92,7 @@ You must return your analysis strictly in a JSON format matching the following s
     "summary": "A concise paragraph summarizing the dataset purpose and structural quality",
     "insights": [
         "A highly valuable, metric-rich analytical bullet point detailing observations",
-        "Another specific trend or observation regarding numerical averages, high cardinality, or empty cells"
+        "Another trend regarding numerical averages, high cardinality, or empty cells"
     ],
     "anomalies": [
         "Alert details regarding data quality anomalies (e.g., column X has high missing rates, column Y has excessive duplicates)",
@@ -98,6 +104,14 @@ Key Rules:
 2. Limit insights to max 3 items. Limit anomalies to max 3 items.
 3. Reply strictly in raw, valid JSON.`;
 
+        // Compress columns profile parameters
+        const compressedProfiles = columnsProfile.slice(0, 10).map(p => ({
+            column: p.column,
+            type: p.type,
+            nullCount: p.nullCount,
+            distinctCount: p.distinctCount
+        }))
+
         const prompt = `Dataset: "${datasetName}"
 Metrics:
 - Total Rows: ${profileSummary.totalRows}
@@ -105,7 +119,7 @@ Metrics:
 - Health Score: ${profileSummary.healthScore}%
 - Duplicate Rows: ${profileSummary.duplicateRows}
 
-Column Specific Stats: ${JSON.stringify(columnsProfile)}
+Column Specific Stats: ${JSON.stringify(compressedProfiles)}
 
 Generate insights and anomalies JSON structure:`;
 
