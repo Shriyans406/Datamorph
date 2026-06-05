@@ -12,6 +12,7 @@ import {
     firestoreAddDoc,
     firestoreSetDoc,
     firestoreUpdateDoc,
+    firestoreDeleteDoc,
 } from "@/lib/firestore-server"
 
 async function getConnectors(): Promise<any[]> {
@@ -72,10 +73,38 @@ async function logSyncRunServer(log: Record<string, any>): Promise<void> {
     })
 }
 
+// Log Archival Routine: Prune connector_sync_logs older than 7 days
+async function pruneOldSyncLogs(): Promise<number> {
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const cutoffTime = Date.now() - SEVEN_DAYS_MS;
+    
+    try {
+        const logs = await firestoreGetDocs("connector_sync_logs");
+        let prunedCount = 0;
+        
+        for (const log of logs) {
+            if (log.syncTime && log.syncTime < cutoffTime) {
+                if (log.id) {
+                    await firestoreDeleteDoc("connector_sync_logs", log.id);
+                    prunedCount++;
+                }
+            }
+        }
+        
+        return prunedCount;
+    } catch (e) {
+        console.error("Failed to prune old sync logs:", e);
+        return 0;
+    }
+}
+
 export async function POST(req: NextRequest) {
     try {
         const urlObj = new URL(req.url)
         const filterId = urlObj.searchParams.get("id")
+
+        // Run archival routine asynchronously without blocking ingestion
+        pruneOldSyncLogs().catch(console.error);
 
         // 1. Fetch connectors via REST (bypasses Firebase Client SDK emulator issue)
         const connectors = await getConnectors()

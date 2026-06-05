@@ -137,3 +137,13 @@ export async function firestoreGetDoc(collectionPath: string, docId: string): Pr
     const doc = await res.json()
     return parseFirestoreDoc(doc)
 }
+
+export async function firestoreDeleteDoc(collectionPath: string, docId: string): Promise<void> {
+    const base = getFirestoreBaseUrl()
+    const url = `${base}/${collectionPath}/${docId}`
+    const res = await fetch(url, { method: "DELETE" })
+    if (!res.ok) {
+        const text = await res.text()
+        throw new Error(`Firestore DELETE ${collectionPath}/${docId} failed (${res.status}): ${text}`)
+    }
+}
