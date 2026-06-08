@@ -15,11 +15,38 @@ import {
     firestoreDeleteDoc,
 } from "@/lib/firestore-server"
 
-async function getConnectors(): Promise<any[]> {
-    return firestoreGetDocs("data_connectors")
+interface Connector {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    config: Record<string, unknown>;
+    datasetId?: string;
+    lastSyncAt?: string | null;
+    syncInterval: string;
 }
 
-async function saveDatasetServer(dataset: any): Promise<string> {
+interface DatasetPayload {
+    metadata: {
+        name: string;
+        rows: number;
+        columns: number;
+        uploadedAt: string;
+        connectorId: string;
+    };
+    schema: unknown;
+    statistics: unknown;
+    quality: unknown;
+    profile: unknown;
+    preview: unknown;
+    rows: unknown[];
+}
+
+async function getConnectors(): Promise<Connector[]> {
+    return firestoreGetDocs("data_connectors") as Promise<Connector[]>
+}
+
+async function saveDatasetServer(dataset: DatasetPayload): Promise<string> {
     const id = await firestoreAddDoc("datasets", {
         metadata: dataset.metadata,
         schema: dataset.schema,
@@ -37,7 +64,7 @@ async function saveDatasetServer(dataset: any): Promise<string> {
     return id
 }
 
-async function updateDatasetServer(id: string, dataset: any): Promise<void> {
+async function updateDatasetServer(id: string, dataset: DatasetPayload): Promise<void> {
     await firestoreSetDoc("datasets", id, {
         metadata: dataset.metadata,
         schema: dataset.schema,
@@ -49,7 +76,7 @@ async function updateDatasetServer(id: string, dataset: any): Promise<void> {
     })
     // Update rows — find existing rows doc
     const rowsDocs = await firestoreGetDocs("dataset_rows")
-    const existingRows = rowsDocs.find((d: any) => d.datasetId === id)
+    const existingRows = rowsDocs.find((d: Record<string, unknown>) => d.datasetId === id) as { id: string } | undefined
     if (existingRows?.id) {
         await firestoreUpdateDoc("dataset_rows", existingRows.id, {
             rows: dataset.rows.slice(0, 500),
@@ -62,11 +89,11 @@ async function updateDatasetServer(id: string, dataset: any): Promise<void> {
     }
 }
 
-async function updateConnectorServer(id: string, updates: Record<string, any>): Promise<void> {
+async function updateConnectorServer(id: string, updates: Partial<Connector>): Promise<void> {
     await firestoreUpdateDoc("data_connectors", id, updates)
 }
 
-async function logSyncRunServer(log: Record<string, any>): Promise<void> {
+async function logSyncRunServer(log: Record<string, unknown>): Promise<void> {
     await firestoreAddDoc("connector_sync_logs", {
         ...log,
         syncTime: log.syncTime || Date.now(),
@@ -115,10 +142,10 @@ export async function POST(req: NextRequest) {
             return true
         })
 
-        const results: any[] = []
+        const results: Record<string, unknown>[] = []
 
         for (const conn of activeConnectors) {
-            let rows: Record<string, any>[] = []
+            let rows: Record<string, unknown>[] = []
             let errorMsg: string | null = null
 
             try {
@@ -185,9 +212,9 @@ export async function POST(req: NextRequest) {
 
                 results.push({ id: conn.id, status: "success", count: rows.length })
 
-            } catch (err: any) {
+            } catch (err) {
                 console.error(`Connector sync failed for [${conn.id}]`, err)
-                errorMsg = err.message || "Failed data ingestion"
+                errorMsg = err instanceof Error ? err.message : "Failed data ingestion"
 
                 await updateConnectorServer(conn.id, { status: "error" })
                 await logSyncRunServer({
@@ -205,8 +232,8 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({ success: true, processedCount: activeConnectors.length, results })
-    } catch (e: any) {
+    } catch (e) {
         console.error("Scheduler handler crashed:", e)
-        return NextResponse.json({ error: e.message }, { status: 500 })
+        return NextResponse.json({ error: e instanceof Error ? e.message : "Scheduler handler crashed" }, { status: 500 })
     }
 }

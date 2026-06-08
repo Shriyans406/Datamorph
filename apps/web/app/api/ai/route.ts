@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         // Determine specific prompts and fallback implementations based on action
         let systemPrompt = "";
         let prompt = "";
-        let fallbackResult: any = null;
+        let fallbackResult: unknown = null;
 
         if (action === "chart") {
             const build = Prompts.getChartRecommendationPrompt(datasetName || "Unnamed", columns || [], sampleRows || []);
@@ -82,13 +82,13 @@ export async function POST(req: NextRequest) {
 
             return NextResponse.json({ source: "api", data: parsedData });
         } catch (parseError) {
-            console.error("🔴 Failed to parse Gemini response as JSON. Output raw text was: ", resultText);
+            console.error("🔴 Failed to parse Gemini response as JSON. Error details:", parseError, "Output raw text was: ", resultText);
             console.warn("⚠️ Triggering fallback output due to json parse failure.");
             return NextResponse.json({ source: "fallback", data: fallbackResult });
         }
 
-    } catch (error: any) {
+    } catch (error) {
         console.error("🔴 API handler crashed: ", error);
-        return NextResponse.json({ error: error.message || "Internal server crash" }, { status: 500 });
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Internal server crash" }, { status: 500 });
     }
 }

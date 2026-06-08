@@ -1,31 +1,62 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Database, Plus, RefreshCw, Trash2, Link, CheckCircle2, Play, Layers, ShieldAlert, Loader2, ArrowRight } from "lucide-react"
+import { Database, Play, Loader2, ArrowRight } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, deleteDoc, doc, addDoc } from "firebase/firestore"
+import { collection, onSnapshot, deleteDoc, doc, addDoc } from "firebase/firestore"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 import NextLink from "next/link"
 
+interface Connector {
+    id: string;
+    name: string;
+    type: string;
+    status: string;
+    config: Record<string, unknown>;
+    datasetId?: string;
+    lastSyncAt?: string | null;
+    syncInterval: string;
+}
+
+interface SyncLog {
+    id: string;
+    connectorName: string;
+    syncTime: number;
+    recordsSynced: number;
+    status: string;
+    error?: string | null;
+}
+
+interface Dataset {
+    id: string;
+    metadata?: {
+        name?: string;
+        rows?: number;
+        columns?: number;
+        isConnector?: boolean;
+        connectorId?: string;
+    };
+}
+
 export default function ConnectorsTestPage() {
     const router = useRouter()
-    const [connectors, setConnectors] = useState<any[]>([])
-    const [logs, setLogs] = useState<any[]>([])
-    const [datasets, setDatasets] = useState<any[]>([])
+    const [connectors, setConnectors] = useState<Connector[]>([])
+    const [logs, setLogs] = useState<SyncLog[]>([])
+    const [datasets, setDatasets] = useState<Dataset[]>([])
     const [isTriggeringCron, setIsTriggeringCron] = useState(false)
     const [syncingId, setSyncingId] = useState<string | null>(null)
 
     useEffect(() => {
         const unsubConn = onSnapshot(collection(db, "data_connectors"), snap => {
-            setConnectors(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+            setConnectors(snap.docs.map(d => ({ id: d.id, ...d.data() } as Connector)))
         })
         const unsubLogs = onSnapshot(collection(db, "connector_sync_logs"), snap => {
-            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-            setLogs(list.sort((a: any, b: any) => b.syncTime - a.syncTime))
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SyncLog))
+            setLogs(list.sort((a, b) => b.syncTime - a.syncTime))
         })
         const unsubData = onSnapshot(collection(db, "datasets"), snap => {
-            setDatasets(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+            setDatasets(snap.docs.map(d => ({ id: d.id, ...d.data() } as Dataset)))
         })
         return () => { unsubConn(); unsubLogs(); unsubData() }
     }, [])
@@ -33,20 +64,13 @@ export default function ConnectorsTestPage() {
     const handleCreateMockConnector = async (type: "google-sheets" | "airtable" | "api") => {
         try {
             toast.info(`Creating mock ${type} connector...`)
-            const configPayload: any = { simulate: true }
-
-            if (type === "google-sheets") {
-                configPayload.spreadsheetId = "1mockSpreadsheetID"
-                configPayload.range = "Sheet1!A1:E10"
-                configPayload.accessToken = "mock-token"
-            } else if (type === "airtable") {
-                configPayload.baseId = "appMockBaseId"
-                configPayload.tableIdOrName = "Mock Table"
-                configPayload.personalAccessToken = "mock-airtable-pat"
-            } else {
-                configPayload.url = "https://mock-api.datamorph.io/metrics"
-                configPayload.method = "GET"
-                configPayload.jsonPath = "data"
+            const configPayload: Record<string, unknown> = {
+                simulate: true,
+                ...(type === "google-sheets"
+                    ? { spreadsheetId: "1mockSpreadsheetID", range: "Sheet1!A1:E10", accessToken: "mock-token" }
+                    : type === "airtable"
+                    ? { baseId: "appMockBaseId", tableIdOrName: "Mock Table", personalAccessToken: "mock-airtable-pat" }
+                    : { url: "https://mock-api.datamorph.io/metrics", method: "GET", jsonPath: "data" })
             }
 
             await addDoc(collection(db, "data_connectors"), {

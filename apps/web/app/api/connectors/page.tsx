@@ -1,28 +1,48 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Database, Plus, RefreshCw, Trash2, Calendar, Link, CheckCircle2, AlertCircle, FileText, ArrowRight } from "lucide-react"
+import { Database, Plus, RefreshCw, Trash2, Calendar, Link, CheckCircle2, AlertCircle, FileText } from "lucide-react"
 import { db } from "@/lib/firebase"
-import { collection, onSnapshot, query, deleteDoc, doc } from "firebase/firestore"
+import { collection, onSnapshot, deleteDoc, doc } from "firebase/firestore"
 import { toast } from "sonner"
 import { AddConnectorModal } from "@/components/connectors/add-connector-modal"
 
+interface Connector {
+    id: string;
+    name: string;
+    type: string;
+    syncInterval: string;
+    lastSyncAt?: string | null;
+    status: string;
+    config?: Record<string, unknown>;
+    datasetId?: string;
+}
+
+interface SyncLog {
+    id?: string;
+    connectorName: string;
+    syncTime: number;
+    recordsSynced: number;
+    status: string;
+    error?: string | null;
+}
+
 export default function ConnectorsPage() {
-    const [connectors, setConnectors] = useState<any[]>([])
-    const [logs, setLogs] = useState<any[]>([])
+    const [connectors, setConnectors] = useState<Connector[]>([])
+    const [logs, setLogs] = useState<SyncLog[]>([])
     const [loading, setLoading] = useState(true)
     const [syncingId, setSyncingId] = useState<string | null>(null)
     const [isAddOpen, setIsAddOpen] = useState(false)
 
     useEffect(() => {
         const unsubConn = onSnapshot(collection(db, "data_connectors"), snap => {
-            setConnectors(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+            setConnectors(snap.docs.map(d => ({ id: d.id, ...d.data() } as Connector)))
             setLoading(false)
         }, () => setLoading(false))
 
         const unsubLogs = onSnapshot(collection(db, "connector_sync_logs"), snap => {
-            const list = snap.docs.map(d => ({ id: d.id, ...d.data() }))
-            list.sort((a: any, b: any) => b.syncTime - a.syncTime)
+            const list = snap.docs.map(d => ({ id: d.id, ...d.data() } as SyncLog))
+            list.sort((a, b) => b.syncTime - a.syncTime)
             setLogs(list)
         })
 
@@ -163,7 +183,7 @@ export default function ConnectorsPage() {
                                                 <CheckCircle2 className="w-3 h-3" /> success
                                             </span>
                                         ) : (
-                                            <span className="flex items-center gap-0.5 text-red-400 text-[10px] font-medium" title={log.error}>
+                                            <span className="flex items-center gap-0.5 text-red-400 text-[10px] font-medium" title={log.error || undefined}>
                                                 <AlertCircle className="w-3 h-3" /> failed
                                             </span>
                                         )}

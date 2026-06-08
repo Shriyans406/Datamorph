@@ -5,16 +5,46 @@ import nodemailer from "nodemailer"
 import { jsPDF } from "jspdf"
 import * as XLSX from "xlsx"
 
+interface ScheduledReport {
+    id: string;
+    active: boolean;
+    dashboardId: string;
+    format: "pdf" | "excel" | "csv" | string;
+    email: string;
+    frequency: string;
+}
+
+interface DashboardWidget {
+    id: string;
+    title: string;
+    type: string;
+    datasetId: string;
+}
+
+interface DashboardConfig {
+    id: string;
+    name: string;
+    widgets?: DashboardWidget[];
+}
+
+interface CronLog {
+    scheduleId: string;
+    email?: string;
+    format?: string;
+    status: string;
+    sentAt?: string;
+    error?: string;
+}
+
 export async function POST(req: NextRequest) {
     try {
         const urlObj = new URL(req.url)
-        const simulate = urlObj.searchParams.get("simulate") === "true"
         const filterDashboardId = urlObj.searchParams.get("dashboardId")
 
         // 1. Fetch active schedules
         const schedulesRef = collection(db, "scheduled_reports")
         const schedulesSnap = await getDocs(schedulesRef)
-        const allSchedules = schedulesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[]
+        const allSchedules = schedulesSnap.docs.map(d => ({ id: d.id, ...d.data() })) as ScheduledReport[]
 
         const activeSchedules = allSchedules.filter(s => {
             if (!s.active) return false
@@ -22,7 +52,7 @@ export async function POST(req: NextRequest) {
             return true
         })
 
-        const logs: any[] = []
+        const logs: CronLog[] = []
 
         for (const schedule of activeSchedules) {
             // 2. Fetch Dashboard configuration
@@ -34,7 +64,7 @@ export async function POST(req: NextRequest) {
             }
 
             const dashboard = !dashSnap.empty
-                ? { id: dashSnap.docs[0].id, ...dashSnap.docs[0].data() } as any
+                ? { id: dashSnap.docs[0].id, ...dashSnap.docs[0].data() } as DashboardConfig
                 : {
                     id: "export-test-dashboard", name: "Enterprise Revenue Dashboard", widgets: [
                         { id: "widget-1", title: "Monthly Sales Revenue", type: "bar", datasetId: "sales-data" },
@@ -45,14 +75,14 @@ export async function POST(req: NextRequest) {
             // Fetch datasets map
             const datasetsRef = collection(db, "datasets")
             const datasetsSnap = await getDocs(datasetsRef)
-            const datasetsMap: Record<string, any> = {}
+            const datasetsMap: Record<string, unknown> = {}
             datasetsSnap.docs.forEach(d => {
                 datasetsMap[d.id] = d.data()
             })
 
             const rowsRef = collection(db, "dataset_rows")
             const rowsSnap = await getDocs(rowsRef)
-            const rowsMap: Record<string, any[]> = {}
+            const rowsMap: Record<string, unknown[]> = {}
             rowsSnap.docs.forEach(d => {
                 const data = d.data()
                 rowsMap[data.datasetId] = data.rows || []
@@ -80,7 +110,7 @@ export async function POST(req: NextRequest) {
                 doc.line(15, 48, 195, 48)
 
                 let y = 60
-                dashboard.widgets?.forEach((w: any, idx: number) => {
+                dashboard.widgets?.forEach((w: DashboardWidget, idx: number) => {
                     if (y > 240) {
                         doc.addPage()
                         y = 20
@@ -104,7 +134,7 @@ export async function POST(req: NextRequest) {
             } else if (schedule.format === "excel") {
                 // Server-side Excel Compilation
                 const wb = XLSX.utils.book_new()
-                dashboard.widgets?.forEach((w: any) => {
+                dashboard.widgets?.forEach((w: DashboardWidget) => {
                     const dataRows = rowsMap[w.datasetId] || [
                         { Month: "Jan", Value: 100 }, { Month: "Feb", Value: 200 }
                     ]
@@ -118,7 +148,7 @@ export async function POST(req: NextRequest) {
             } else {
                 // Server-side CSV Compilation
                 let csvContent = "Widget Title,Widget Type,Dataset ID\n"
-                dashboard.widgets?.forEach((w: any) => {
+                dashboard.widgets?.forEach((w: DashboardWidget) => {
                     csvContent += `"${w.title}","${w.type}","${w.datasetId}"\n`
                 })
                 attachmentContentBase64 = Buffer.from(csvContent).toString("base64")
@@ -182,8 +212,8 @@ export async function POST(req: NextRequest) {
         }
 
         return NextResponse.json({ success: true, processedCount: activeSchedules.length, logs })
-    } catch (error: any) {
+    } catch (error) {
         console.error("Cron Handler crashed:", error)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+        return NextResponse.json({ error: error instanceof Error ? error.message : "Cron Handler crashed" }, { status: 500 })
     }
 }
