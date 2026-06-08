@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase"
 import { collection, onSnapshot, query, deleteDoc, doc, addDoc } from "firebase/firestore"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+import NextLink from "next/link"
 
 export default function ConnectorsTestPage() {
     const router = useRouter()
@@ -109,15 +110,22 @@ export default function ConnectorsTestPage() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-8 font-sans">
+        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-6 font-sans">
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+                <NextLink href="/" className="hover:text-indigo-400 transition-colors">Home</NextLink>
+                <span>/</span>
+                <span className="text-slate-300 font-medium">Data Connectors</span>
+            </div>
+
             <div className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <ShieldAlert className="text-indigo-500" />
-                        Phase 12 — External Data Connectors Verification Panel
+                        <Database className="text-indigo-500 w-6 h-6" />
+                        External Data Connectors Control
                     </h1>
                     <p className="text-xs text-slate-400 mt-1">
-                        Use this playground to configure mock/sandbox connectors and test token ingestion flows fully offline.
+                        Configure sandbox integrations, trigger automated scheduling cron runs, and monitor live dataset sync operations.
                     </p>
                 </div>
             </div>

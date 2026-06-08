@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { FileText, FileSpreadsheet, Download, Calendar, Play, Trash2, RefreshCw, Layers, Loader2, Database } from "lucide-react"
 import { exportToCSV, exportToExcel } from "@/services/export/csv-excel-export"
 import { generateDashboardPDF, exportWidgetAsPNG } from "@/services/export/pdf-export"
@@ -206,16 +207,23 @@ export default function ExportTestPage() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-8 font-sans">
+        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-6 font-sans">
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Link href="/" className="hover:text-indigo-400 transition-colors">Home</Link>
+                <span>/</span>
+                <span className="text-slate-300 font-medium">Export &amp; Reporting</span>
+            </div>
+
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <Layers className="text-indigo-500" />
-                        Phase 11 — Export & Reporting Verification Panel
+                        <Download className="text-indigo-500 w-6 h-6" />
+                        Export &amp; Scheduled Reporting Center
                     </h1>
                     <p className="text-xs text-slate-400 mt-1">
-                        All data is live from Firestore — no mock values.
+                        Generate high-fidelity document exports and orchestrate automated enterprise email reports powered by live database snapshots.
                     </p>
                 </div>
             </div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ShieldAlert, TerminalSquare, Bug, CheckCircle } from "lucide-react"
 import { toast } from "sonner"
 import { ErrorBoundary } from "@/components/error-boundary"
@@ -44,14 +45,21 @@ export default function TestingLabPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 p-8">
-            <div className="max-w-5xl mx-auto space-y-8">
+            <div className="max-w-5xl mx-auto space-y-6">
+                {/* Breadcrumbs */}
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Link href="/" className="hover:text-indigo-400 transition-colors">Home</Link>
+                    <span>/</span>
+                    <span className="text-slate-300 font-medium">System Diagnostics</span>
+                </div>
+
                 <header>
                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
                         <ShieldAlert className="text-indigo-500 h-8 w-8" />
-                        Testing &amp; Stabilization Lab
+                        System Diagnostics &amp; Stability Lab
                     </h1>
                     <p className="text-slate-400 mt-2">
-                        Phase 14: Verify error boundaries, structured logging, and API error handling.
+                        Verify system error boundaries, structured JSON logging, and fallback API handling under load.
                     </p>
                 </header>
 
@@ -134,7 +142,7 @@ export default function TestingLabPage() {
 
                 {/* Status Summary */}
                 <section className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                    <h2 className="text-lg font-bold text-slate-200 mb-4">Phase 14 Verification Checklist</h2>
+                    <h2 className="text-lg font-bold text-slate-200 mb-4">Diagnostics &amp; Stability Verification Checklist</h2>
                     <ul className="space-y-2 text-sm text-slate-400">
                         <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" /> <strong className="text-slate-200">Error Boundary:</strong> UI crash is caught, fallback shown, page stays alive</li>
                         <li className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-emerald-500 shrink-0" /> <strong className="text-slate-200">API Error (500):</strong> Server throws intentionally, response captured in log</li>

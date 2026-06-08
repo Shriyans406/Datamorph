@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { ShieldCheck, Cloud, RefreshCw, Server, AlertTriangle, KeyRound, Radio } from "lucide-react"
 import { toast } from "sonner"
 
@@ -58,7 +59,14 @@ export default function DeploymentLabPage() {
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-            <div className="max-w-6xl mx-auto space-y-8">
+            <div className="max-w-6xl mx-auto space-y-6">
+
+                {/* Breadcrumbs */}
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Link href="/" className="hover:text-indigo-400 transition-colors">Home</Link>
+                    <span>/</span>
+                    <span className="text-slate-300 font-medium">Deployment Control</span>
+                </div>
 
                 {/* Header */}
                 <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-6">

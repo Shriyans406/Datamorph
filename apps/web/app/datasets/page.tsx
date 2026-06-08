@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { UploadCloud, Database, ArrowRight, RefreshCw, Trash2, Layers } from "lucide-react"
 import { toast } from "sonner"
 import { UploadZone } from "@/components/datasets/upload-zone"
@@ -58,10 +59,12 @@ export default function DatasetsPage() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <Database className="w-6 h-6 text-indigo-400" />
-                        Datasets
-                    </h1>
+                    <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
+                        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <Database className="w-6 h-6 text-indigo-400" />
+                            DataMorph Datasets
+                        </h1>
+                    </Link>
                     <p className="text-xs text-slate-400 mt-1">
                         Upload CSV / Excel files and explore your data in real time
                     </p>

@@ -40,10 +40,12 @@ export default function DashboardPage() {
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-6">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                        <LayoutDashboard className="w-6 h-6 text-indigo-400" />
-                        DataMorph
-                    </h1>
+                    <Link href="/" className="inline-block hover:opacity-85 transition-opacity">
+                        <h1 className="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+                            <LayoutDashboard className="w-6 h-6 text-indigo-400" />
+                            DataMorph
+                        </h1>
+                    </Link>
                     <p className="text-xs text-slate-400 mt-1">
                         AI-powered analytics platform
                     </p>

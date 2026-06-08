@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 
 import { useParams } from "next/navigation"
+import Link from "next/link"
 
 import { ExplorerTable } from "@/components/datasets/explorer/explorer-table"
 
@@ -46,7 +47,16 @@ export default function DatasetPage() {
     }
 
     return (
-        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-8">
+        <main className="min-h-screen bg-slate-950 text-slate-100 p-8 space-y-6">
+            {/* Breadcrumbs */}
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Link href="/" className="hover:text-indigo-400 transition-colors">Home</Link>
+                <span>/</span>
+                <Link href="/datasets" className="hover:text-indigo-400 transition-colors">Datasets</Link>
+                <span>/</span>
+                <span className="text-slate-300 font-medium truncate max-w-[200px]">{dataset.metadata.name}</span>
+            </div>
+
             {/* Header */}
             <div>
                 <h1 className="text-3xl font-bold text-white">
